@@ -31,3 +31,7 @@ thuthesis.pdf
 main.pdf
 
 *.xdv
+*.synctex(busy)
+*.synctex*
+
+.vscode

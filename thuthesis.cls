@@ -545,23 +545,15 @@
 %    \parbox[b][2.4cm][t]{\textwidth}{%
 %      \ifthu@secret{\heiti\sanhao\thu@secretlevel\thu@secret@content}\else\rule{1cm}{0cm}\fi}
     \ifthu@bachelor
-      \vskip0.45cm
-      {\includegraphics{tsinghua}}
-      \par\vskip1.5cm
-      {\xiaochu\heiti\ziju{0.5}\thu@bachelor@subtitle}
-      \vskip2.2cm
-      \noindent\heiti\xiaoer\thu@bachelor@title@pre\thu@title@sep
-      \parbox[t]{12cm}{%
-      \ignorespaces\yihao[1.55]%
-      \renewcommand{\CJKunderlinebasesep}{0.25cm}%
-      \renewcommand{\ULthickness}{1.3pt}%
-      \ifxetex
-        \xeCJKsetup{underline/format=\color{black}}%
-      \else
-        \def\CJKunderlinecolor{\color{black}}%
-      \fi
-      \CJKunderline*{\thu@ctitle}}%
-      \vskip1.3cm
+      \parbox[t][1.2cm][t]{\textwidth}{%
+        \hfill\wuhao\songti 论文编码\thu@title@sep\ifx\thu@catalognumber\@empty\thu@uid\else\thu@catalognumber\fi\par}
+      \vskip0.8cm
+      {\yihao\heiti\thu@schoolname\par}
+      \vskip0.6cm
+      {\xiaoer\heiti\ziju{0.5}\thu@bachelor@title\par}
+      \vskip2.0cm
+      {\heiti\xiaoer\thu@ctitle\par}
+      \vskip1.4cm
     \else
     \vskip1cm
     \parbox[t][1.16cm][t]{\textwidth}{
@@ -583,30 +575,31 @@
     \fi
 
     \ifthu@bachelor
-      \vskip1cm
-      \parbox[t][7.0cm][t]{\textwidth}{%
+      \vskip1.2cm
+      \parbox[t][8.2cm][t]{\textwidth}{%
         {\fangsong\sanhao[1.8]%
-         \hspace*{1.65cm}
-         \setlength{\thu@title@width}{4em}
-         \setlength{\extrarowheight}{6pt}
-         \ifxetex % todo: ugly codes
-           \begin{tabular}{p{\thu@title@width}@{}l@{\extracolsep{8pt}}l}
-         \else
-           \begin{tabular}{p{\thu@title@width}l@{}l}
-         \fi
-             \thu@put@title{\thu@department@title} & \thu@title@sep
-               & \thu@cdepartment\\
-             \thu@put@title{\thu@major@title}      & \thu@title@sep
-               & \thu@cmajor\\
-             \thu@put@title{\thu@author@title}     & \thu@title@sep
-               & \thu@cauthor \\
-             \thu@put@title{\thu@supervisor@title} & \thu@title@sep
-               & \thu@csupervisor\\
-             \ifx\thu@cassosupervisor\@empty\else%
-               \thu@put@title{\thu@assosuper@title} & \thu@title@sep
-               & \thu@cassosupervisor\\
-             \fi
-           \end{tabular}
+          \hspace*{1.8cm}
+          \setlength{\thu@title@width}{4.5em}
+          \setlength{\extrarowheight}{7pt}
+          \def\thu@studentid{\ifx\thu@id\@empty\thu@uid\else\thu@id\fi}
+          \ifxetex
+            \begin{tabular}{p{\thu@title@width}@{}l@{\extracolsep{8pt}}l}
+          \else
+            \begin{tabular}{p{\thu@title@width}l@{}l}
+          \fi
+            \thu@put@title{\thu@author@title}      & \thu@title@sep
+              & \thu@underline[12em]{\thu@cauthor}\\
+            \thu@put@title{\thu@department@title}  & \thu@title@sep
+              & \thu@underline[12em]{\thu@cdepartment}\\
+            \thu@put@title{\thu@major@title}       & \thu@title@sep
+              & \thu@underline[12em]{\thu@cmajor}\\
+            \thu@put@title{\thu@id@title}          & \thu@title@sep
+              & \thu@underline[12em]{\thu@studentid}\\
+            \thu@put@title{\thu@supervisor@title}  & \thu@title@sep
+              & \thu@underline[12em]{\thu@csupervisor}\\
+            \thu@put@title{完成日期}                 & \thu@title@sep
+              & \thu@underline[12em]{\thu@cdate}\\
+          \end{tabular}
         }}
     \else
 %      \vskip 5bp
@@ -631,7 +624,7 @@
         \end{center}}}
       \fi
      \begin{center}
-       {\ifthu@bachelor\vskip-1.0cm\hskip-1.2cm\xiaosi\else%
+       {\ifthu@bachelor\vskip-2.2cm\hskip-1.2cm\xiaosi\else%
          \vskip3.3cm\xiaosan\fi%
          \cusong\thu@cdate
          }
