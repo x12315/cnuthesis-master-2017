@@ -17,6 +17,7 @@ FIGURES=$(wildcard figures/*.eps figures/*.pdf)
 BIBFILE=ref/*.bib
 SHUJICONTENTS=$(SHUJIMAIN).tex
 CLSFILES=dtx-style.sty $(PACKAGE).cls $(PACKAGE).cfg
+HAVE_DTX_SOURCES=$(and $(wildcard $(PACKAGE).ins),$(wildcard $(PACKAGE).dtx))
 
 # make deletion work on Windows
 ifdef SystemRoot
@@ -29,17 +30,31 @@ endif
 
 .PHONY: all clean distclean dist thesis viewthesis shuji viewshuji doc viewdoc cls check FORCE_MAKE
 
+ifeq ($(strip $(HAVE_DTX_SOURCES)),)
+all: thesis
+else
 all: doc thesis shuji
+endif
 
+ifeq ($(strip $(HAVE_DTX_SOURCES)),)
+cls:
+	@echo "Pre-generated class/style files detected, skip class generation."
+else
 cls: $(CLSFILES)
 
 $(CLSFILES): $(SOURCES)
 	latex $(PACKAGE).ins
+endif
 
 viewdoc: doc
 	$(OPEN) $(PACKAGE).pdf
 
+ifeq ($(strip $(HAVE_DTX_SOURCES)),)
+doc:
+	@echo "Skip doc build: missing $(PACKAGE).ins/.dtx sources."
+else
 doc: $(PACKAGE).pdf
+endif
 
 viewthesis: thesis
 	$(OPEN) $(THESISMAIN).pdf
@@ -49,29 +64,34 @@ thesis: $(THESISMAIN).pdf
 viewshuji: shuji
 	$(OPEN) $(SHUJIMAIN).pdf
 
+ifeq ($(strip $(HAVE_DTX_SOURCES)),)
+shuji:
+	@echo "Skip shuji build: missing source files."
+else
 shuji: $(SHUJIMAIN).pdf
+endif
 
 ifeq ($(METHOD),latexmk)
 
-$(PACKAGE).pdf: $(CLSFILES) FORCE_MAKE
+$(PACKAGE).pdf: cls FORCE_MAKE
 	$(METHOD) $(LATEXMKOPTS) $(PACKAGE).dtx
 
-$(THESISMAIN).pdf: $(CLSFILES) FORCE_MAKE
+$(THESISMAIN).pdf: cls FORCE_MAKE
 	$(METHOD) $(LATEXMKOPTS) $(THESISMAIN)
 
-$(SHUJIMAIN).pdf: $(CLSFILES) FORCE_MAKE
+$(SHUJIMAIN).pdf: cls FORCE_MAKE
 	$(METHOD) $(LATEXMKOPTS) $(SHUJIMAIN)
 
 else ifneq (,$(filter $(METHOD),xelatex pdflatex))
 
-$(PACKAGE).pdf: $(CLSFILES)
+$(PACKAGE).pdf: cls
 	$(METHOD) $(PACKAGE).dtx
 	makeindex -s gind.ist -o $(PACKAGE).ind $(PACKAGE).idx
 	makeindex -s gglo.ist -o $(PACKAGE).gls $(PACKAGE).glo
 	$(METHOD) $(PACKAGE).dtx
 	$(METHOD) $(PACKAGE).dtx
 
-$(THESISMAIN).pdf: $(CLSFILES) $(THESISCONTENTS) $(THESISMAIN).bbl
+$(THESISMAIN).pdf: cls $(THESISCONTENTS) $(THESISMAIN).bbl
 	$(METHOD) $(THESISMAIN)
 	$(METHOD) $(THESISMAIN)
 
@@ -80,7 +100,7 @@ $(THESISMAIN).bbl: $(BIBFILE)
 	-bibtex $(THESISMAIN)
 	$(RM) $(THESISMAIN).pdf
 
-$(SHUJIMAIN).pdf: $(CLSFILES) $(SHUJICONTENTS)
+$(SHUJIMAIN).pdf: cls $(SHUJICONTENTS)
 	$(METHOD) $(SHUJIMAIN)
 
 else

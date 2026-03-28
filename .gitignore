@@ -29,3 +29,5 @@ dist
 dtx-style.sty
 thuthesis.pdf
 main.pdf
+
+*.xdv
