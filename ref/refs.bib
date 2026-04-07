@@ -374,3 +374,50 @@ author = {Gaoge Hu and Wei Wang and Yongmin Zhong and Bingbing Gao and Chengfan 
 keywords = {INS/GNSS integration, Direct filtering, Kinematic model error, Suboptimal fading factor, Strong tracking unscented Kalman filter},
 abstract = {This paper presents a novel direct filtering approach to INS/GNSS (Inertial Navigation System / Global Navigation Satellite System) integration. This approach establishes a kinematic model for INS/GNSS integration by combining inertial navigation equations and IMU (Inertial Measurement Unit) error equations. Subsequently, a refined strong tracking unscented Kalman filter (RSTUKF) is developed to enhance the UKF robustness against kinematic model error. This RSTUKF adopts the strategy of assumption test to identify kinematic model error. Based on this, a suboptimal fading factor (SFF) is derived and embedded in the predicted covariance to weaken the influence of prior information on the filtering solution only in the presence of kinematic model error. In addition to correction of the UKF estimation in the presence of kinematic model error, the RSTUKF also maintains the optimal UKF estimation in the absence of kinematic model error. Simulation and experimental analysis demonstrate the performance of the proposed approach to INS/GNSS integration.}
 }
+
+@article{Sage1969AdaptiveFW,
+  title={Adaptive filtering with unknown prior statistics},
+  author={Andrew P. Sage and Gary W. Husa},
+  journal={IEEE Transactions on Automatic Control},
+  year={1969},
+  pages={760-769},
+  url={https://api.semanticscholar.org/CorpusID:118131646}
+}
+
+
+@article{ WOS:000652850700001,
+Author = {Wen, Weisong and Pfeifer, Tim and Bai, Xiwei and Hsu, Li-Ta},
+Title = {Factor graph optimization for GNSS/INS integration: A comparison with
+   the extended Kalman filter},
+Journal = {NAVIGATION-JOURNAL OF THE INSTITUTE OF NAVIGATION},
+Year = {2021},
+Volume = {68},
+Number = {2},
+Pages = {315-331},
+Month = {JUN},
+Abstract = {Factor graph optimization (FGO) recently has attracted attention as an
+   alternative to the extended Kalman filter (EKF) for GNSS-INS
+   integration. This study evaluates both loosely and tightly coupled
+   integrations of GNSS code pseudorange and INS measurements for real-time
+   positioning, using both conventional EKF and FGO with a dataset
+   collected in an urban canyon in Hong Kong. The FGO strength is analyzed
+   by degenerating the FGO-based estimator into an ``EKF-like
+   estimator.{''} In addition, the effects of window size on FGO
+   performance are evaluated by considering both the GNSS pseudorange error
+   models and environmental conditions. We conclude that the conventional
+   FGO outperforms the EKF because of the following two factors: (1) FGO
+   uses multiple iterations during the estimation to achieve a robust
+   estimation; and (2) FGO better explores the time correlation between the
+   measurements and states, based on a batch of historical data, when the
+   measurements do not follow the Gaussian noise assumption.},
+DOI = {10.1002/navi.421},
+EarlyAccessDate = {MAY 2021},
+ISSN = {0028-1522},
+EISSN = {2161-4296},
+ResearcherID-Numbers = {Hsu, Li-Ta/I-9078-2014
+   },
+ORCID-Numbers = {BAI, Xiwei/0000-0002-9659-3570
+   Pfeifer, Tim/0000-0001-8974-2278
+   WEN, Weisong/0000-0003-4158-0913},
+Unique-ID = {WOS:000652850700001},
+}

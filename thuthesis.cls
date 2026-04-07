@@ -800,19 +800,11 @@
     \thu@chapter*{\thu@ackname}
   }
   {
-    \ifthu@postdoctor\relax\else%
-      \ifthu@master\relax\else%
-      \IfNoValueTF{#1}{%
-        \thu@chapter*{\thu@declarename}
-        \par{\xiaosi\parindent2em\thu@declaretext}\vskip2cm
-        {\xiaosi\hfill\thu@signature\thu@underline[2.5cm]\relax%
-         \thu@backdate\thu@underline[2.5cm]\relax}%
-      }{%
-        \includepdf[pagecommand={\thispagestyle{thu@empty}%
-          \phantomsection\addcontentsline{toc}{chapter}{\thu@declarename}%
-        }]{#1}%
-      }%
-    \fi\fi
+    \IfValueT{#1}{%
+      \includepdf[pagecommand={\thispagestyle{thu@empty}%
+        \phantomsection\addcontentsline{toc}{chapter}{\thu@declarename}%
+      }]{#1}%
+    }%
   }
 \let\ack\acknowledgement
 \let\endack\endacknowledgement
