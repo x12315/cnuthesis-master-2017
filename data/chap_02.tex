@@ -1,0 +1,351 @@
+% !TeX root = ../main.tex
+
+\chapter{误差模型与传统观测算法}
+
+\section{误差模型的系统动态模型}
+/Users/montana/Downloads/s10291-017-0612-y.pdf /Users/montana/Downloads/sensors-17-02462.pdf
+(记得补充引用啊)
+\subsection{松耦合误差状态向量定义}
+针对GNSS/INS紧组合（LC）架构，典型的误差状态向量定义为：
+\begin{equation}
+    \delta \bm{x}_\text{LC} = [\delta \bm{r}^n, \delta \bm{v}^n, \bm{\phi}, \bm{\varepsilon}^b, \nabla^b]^T
+    \label{eq:error_state}
+\end{equation}
+式中：上标 $n$ 表示导航坐标系，$b$ 表示载体坐标系；
+$\delta \bm{r}^n = [\delta r_N, \delta r_E, \delta r_D]^T$ 为北向、东向、地向位置误差向量；
+$\delta \bm{v}^n = [\delta v_N, \delta v_E, \delta v_D]^T$ 为北向、东向、地向速度误差向量；
+$\bm{\phi} = [\phi_N, \phi_E, \phi_D]^T$ 为失准角向量；
+$\bm{\varepsilon}^b = [\varepsilon_X, \varepsilon_Y, \varepsilon_Z]^T$ 为陀螺零偏；
+$\nabla^b = [\nabla_X, \nabla_Y, \nabla_Z]^T$ 为加速度计零偏。
+
+\subsection{松耦合INS误差动力学模型}
+通过微扰分析法[？？]和基于Allan方差的随机建模[？？]，可推导出惯性导航系统（INS）误差状态动力学模型：
+\begin{equation}
+    \begin{cases}
+        \delta \dot{\bm{r}}^n = -\bm{\omega}_{en}^n \times \delta \bm{r}^n + \delta \bm{v}^n                                                           \\[6pt]
+        \delta \dot{\bm{v}}^n = \bm{C}_b^n \bm{f}^b \times \bm{\phi} - \left(2\bm{\omega}_{ie}^n + \bm{\omega}_{en}^n\right) \times \delta \bm{v}^n    \\[6pt]
+        \quad\quad\quad\quad -\left(2\delta\bm{\omega}_{ie}^n + \delta\bm{\omega}_{en}^n\right) \times \bm{v}^n +\delta \bm{g}^n + \bm{C}_b^n \nabla^b \\[6pt]
+        \dot{\bm{\phi}} = -\bm{\omega}_{in}^n \times \bm{\phi} + \delta\bm{\omega}_{in}^n - \bm{C}_b^n \bm{\varepsilon}^b                              \\[6pt]
+        \dot{\bm{\varepsilon}}^b = -\dfrac{1}{T_\varepsilon} \bm{\varepsilon}^b + \bm{w}_\varepsilon                                                   \\[6pt]
+        \dot{\nabla}^b = -\dfrac{1}{T_\nabla} \nabla^b + \bm{w}_\nabla
+    \end{cases}
+    \label{eq:ins_error_model}
+\end{equation}
+式中：$\bm{\omega}_{ie}^n$ 为地球自转角速度在导航系下的投影；$\bm{\omega}_{en}^n$ 为导航系相对地球坐标系的转动角速度；$\bm{\omega}_{in}^n = \bm{\omega}_{ie}^n + \bm{\omega}_{en}^n$；
+$\bm{C}_b^n$ 为载体坐标系至导航坐标系的转换矩阵；
+$T_\varepsilon$、$T_\nabla$ 分别为陀螺和加速度计相关时间；
+$\bm{w}_\varepsilon$、$\bm{w}_\nabla$ 为驱动噪声。其噪声大小可通过allan方法对imu读数进行分析 或者从imu产品手册上获取；
+误差向量 $\delta \boldsymbol{\omega}_{ie}^n$、$\delta \boldsymbol{\omega}_{en}^n$ 以及重力误差 $\delta \boldsymbol{g}^n$，
+可表示为状态向量中位置误差 $\delta \boldsymbol{r}^n$、速度误差 $\delta \boldsymbol{v}^n$ 和失准角 $\boldsymbol{\phi}$ 的函数；
+$\boldsymbol{\omega}_{ib}^b$ 和 $\boldsymbol{f}^b$ 分别表示陀螺仪与加速度计测量的角速度和比力。
+
+
+\subsection{松耦合系统矩阵形式}
+
+注意到方程右式中所有项均可以写作矩阵与状态变量乘积，因此方程(\ref{eq:ins_error_model})可改写为矩阵形式：
+\begin{equation}
+    \delta \dot{\bm{x}}_k = \bm{F}_\text{SINS} \cdot \delta \bm{x}_k + \bm{G}_\text{SINS} \cdot \bm{w}_k
+    \label{eq:matrix_dynamic}
+\end{equation}
+
+
+其中 \(\delta x_k\) 为第 \(k\) 个离散时间时刻的 INS 误差状态向量；
+\(w_k = [w_\varepsilon^T, w_\nabla^T]^T\) 为过程噪声，假设
+\(w_k \sim N(0, Q_k)\)；\(F_{\text{SINS}}\) 为系统动力学矩阵，当使用指数离散方法时可用于计算小时间间隔 \([t_{k-1}, t_k]\) 上的状态转移矩阵 \(\Phi_{k,k-1}\)，即
+\[
+    \Phi_{k,k-1} = e^{F \cdot (t_k - t_{k-1})};
+\]
+\(\bm{G}_{\text{SINS}}\) 为设计矩阵，用于将误差状态与噪声源相关联，在这里是一个时不变矩阵。
+
+对${F}_\text{SINS}$可以写作多个子矩阵的组合形式:
+% 系统状态转移矩阵 F_SINS
+\begin{equation}
+    \boldsymbol{F}_\text{SINS} =
+    \begin{bmatrix}
+        \boldsymbol{M}_{rr}       & \boldsymbol{I}_{3\times3} & \boldsymbol{0}_{3\times3} & \boldsymbol{0}_{3\times3}                          & \boldsymbol{0}_{3\times3}                     \\[6pt]
+        \boldsymbol{M}_{vr}       & \boldsymbol{M}_{vv}       & \boldsymbol{M}_{v\phi}    & \boldsymbol{0}_{3\times3}                          & \boldsymbol{C}_b^n                            \\[6pt]
+        \boldsymbol{M}_{\phi r}   & \boldsymbol{M}_{\phi v}   & \boldsymbol{M}_{\phi\phi} & -\boldsymbol{C}_b^n                                & \boldsymbol{0}_{3\times3}                     \\[6pt]
+        \boldsymbol{0}_{3\times3} & \boldsymbol{0}_{3\times3} & \boldsymbol{0}_{3\times3} & -\dfrac{1}{T_\varepsilon}\boldsymbol{I}_{3\times3} & \boldsymbol{0}_{3\times3}                     \\[6pt]
+        \boldsymbol{0}_{3\times3} & \boldsymbol{0}_{3\times3} & \boldsymbol{0}_{3\times3} & \boldsymbol{0}_{3\times3}                          & -\dfrac{1}{T_\nabla}\boldsymbol{I}_{3\times3}
+    \end{bmatrix}_{15\times15}
+\end{equation}
+
+
+\begin{equation}
+    \begin{aligned}
+        \boldsymbol{f}^n          & = \boldsymbol{C}_{b}^n\boldsymbol{f}_{b},                                                                                                               \\
+        \boldsymbol{M}_{v\phi}    & = \bigl\lfloor \boldsymbol{f}^n \times \bigr\rfloor,                                                                                                    \\
+        \boldsymbol{M}_{vv}       & = \bigl( \boldsymbol{v}^n \times \bigr)\boldsymbol{M}_{av} - \bigl\lfloor (2\boldsymbol{\omega}_{ie}^n+\boldsymbol{\omega}_{en}^n) \times \bigr\rfloor, \\
+        \boldsymbol{M}_{vr}       & = \bigl( \boldsymbol{v}^n \times \bigr)(2\boldsymbol{M}_1+\boldsymbol{M}_2) + \boldsymbol{M}_3,                                                         \\[4pt]
+        \boldsymbol{M}_{\phi\phi} & = -\bigl\lfloor \boldsymbol{\omega}_{in}^n \times \bigr\rfloor,                                                                                         \\
+        \boldsymbol{M}_{\phi v}   & = \boldsymbol{M}_{av},                                                                                                                                  \\
+        \boldsymbol{M}_{\phi r}   & = \boldsymbol{M}_1 + \boldsymbol{M}_2.
+    \end{aligned}
+\end{equation}
+
+
+% M1
+\begin{equation}
+    \boldsymbol{M}_1 =
+    \begin{bmatrix}
+        0                  & 0 & 0 \\
+        -\omega_{ie}\sin L & 0 & 0 \\
+        \omega_{ie}\cos L  & 0 & 0
+    \end{bmatrix}
+\end{equation}
+
+% M2
+\begin{equation}
+    \boldsymbol{M}_2 =
+    \begin{bmatrix}
+        0                           & 0 & \dfrac{v_N}{R_{Mh}^2}        \\[4pt]
+        0                           & 0 & -\dfrac{v_E}{R_{Nh}^2}       \\[4pt]
+        \dfrac{v_E\sec^2 L}{R_{Nh}} & 0 & -\dfrac{v_E\tan L}{R_{Nh}^2}
+    \end{bmatrix}
+\end{equation}
+
+% Mav
+\begin{equation}
+    \boldsymbol{M}_{av} =
+    \begin{bmatrix}
+        0                      & -\dfrac{1}{R_{Mh}} & 0 \\[4pt]
+        \dfrac{1}{R_{Nh}}      & 0                  & 0 \\[4pt]
+        \dfrac{\tan L}{R_{Nh}} & 0                  & 0
+    \end{bmatrix}
+\end{equation}
+
+% Mpv
+\begin{equation}
+    \boldsymbol{M}_{rv} =
+    \begin{bmatrix}
+        0                      & \dfrac{1}{R_{Mh}} & 0 \\[4pt]
+        \dfrac{\sec L}{R_{Nh}} & 0                 & 0 \\[4pt]
+        0                      & 0                 & 1
+    \end{bmatrix}
+\end{equation}
+
+% Mpp
+\begin{equation}
+    \boldsymbol{M}_{rr} =
+    \begin{bmatrix}
+        0                               & 0 & -\dfrac{v_N}{R_{Mh}^2}       \\[4pt]
+        \dfrac{v_E\sec L\tan L}{R_{Nh}} & 0 & -\dfrac{v_E\sec L}{R_{Nh}^2} \\[4pt]
+        0                               & 0 & 0
+    \end{bmatrix}
+\end{equation}
+
+其中$L$代表维度，与$\bm{v}$、$\boldsymbol{C}_{b}^n$的信息都可以通过INS得到的加速度计与陀螺仪信息经过机械编排得到
+
+（这里如果有必要可添加各式的说明，但是其出自书中我觉得没必要复述）
+
+\subsection{松耦合观测模型}
+
+对于 GNSS/INS 松组合（LC）集成，利用 GNSS 接收机输出的位置和速度（即 \(\bm{r}_k^{\text{GNSS}}\) 和 \(\bm{v}_k^{\text{GNSS}}\)）作为参考，将其与 INS 输出的位置和速度（即 \(\bm{r}_k^{\text{IMU}}\) 和 \(\bm{v}_k^{\text{IMU}}\)）的差值输入到卡尔曼滤波器中，用以估计导航误差和惯性传感器零偏。在时刻 \(k\)，卡尔曼滤波的量测向量 \(\delta \bm{z}_k^{\text{LC}}\) 可写为
+
+\[
+    \delta \bm{z}_k^{\text{LC}} =
+    \begin{pmatrix}
+        \delta \bm{z}_r \\[2pt]
+        \delta \bm{z}_v
+    \end{pmatrix}
+    =
+    \begin{pmatrix}
+        \bm{r}_k^{\text{IMU}} - \bm{r}_k^{\text{GNSS}} \\[2pt]
+        \bm{v}_k^{\text{IMU}} - \bm{v}_k^{\text{GNSS}}
+    \end{pmatrix}.
+\]
+
+GNSS 天线与 IMU 固定在不同位置，形成从 IMU 中心指向 GNSS 相位中心的杆臂向量 \(\bm{e}^b\)，如图 2 所示。经过杆臂效应改正后，量测模型可推导为~[23]
+
+\[
+    \delta \bm{z}_k^{\text{LC}} = \bm{H}_k^{\text{LC}} \cdot \delta \bm{x}_k + \bm{e}_{\text{LC}},
+\]
+
+其中 \(\bm{e}_{\text{LC}} = (\bm{e}_r, \bm{e}_v)^T\) 为 GNSS 位置和速度噪声，其协方差矩阵满足 \(E[(\bm{e}_r^T, \bm{e}_{vi}^T)^T \cdot (\bm{e}_r^T, \bm{e}_{vk}^T)] = \bm{R}_k \delta_{ik}\)，\(\delta_{ik}\) 为克罗内克函数；\(\delta \bm{z}_k^{\text{LC}}\) 为量测向量，\(\bm{H}_k^{\text{LC}}\) 为设计矩阵。具体地，
+
+\[
+    \delta \bm{z}_k^{\text{LC}} =
+    \begin{pmatrix}
+        \delta z_r \\[2pt]
+        \delta z_v
+    \end{pmatrix}
+    =
+    \begin{pmatrix}
+        \bm{r}_1^{\text{IMU}} - \bm{r}_1^{\text{GNSS}} + \bm{C}_n^b \bm{e}^b \\[4pt]
+        \bm{v}_1^{\text{IMU}} - \bm{v}_1^{\text{GNSS}} - (\boldsymbol{\omega}_n^i \times) \bm{C}_n^b \mathbf{e}^b - \bm{C}_n^b (\mathbf{e}^b \times) \boldsymbol{\omega}_{ib}^b
+    \end{pmatrix},
+\]
+
+\[
+    \bm{H}_k^{\text{LC}} =
+    \begin{pmatrix}
+        \bm{I}_{3 \times 3} & \bm{0}_{3 \times 3} & \bigl(\bm{C}_{b}^n \bm{\ell}^b\bigr)\times & \bm{0}_{3 \times 3} & \bm{0}_{3 \times 3} \\
+        \bm{0}_{3 \times 3} & \bm{I}_{3 \times 3} & - \left[\left(\bm{\omega}_{in}^n\times\right)\left(\bm{C}_b^n\ell^b\right)+\bm{C}_b^n\left(\ell^b\times\bm{\omega}_{ib}^b\right)\times \right] & -\bm{C}_b^n\left(\ell^b\times\right) & \bm{0}_{3 \times 3}
+    \end{pmatrix}.
+\]
+
+
+
+\subsection{卡尔曼滤波流程}
+
+本文采用误差状态卡尔曼滤波（Error-State Kalman Filter, ESKF）实现GNSS/INS松组合导航。ESKF的核心思想是：将INS机械编排输出的名义状态（位置、速度、姿态）与误差状态分离，卡尔曼滤波器仅估计误差状态 \(\delta\bm{x}_k\)，然后反馈校正名义状态，从而避免大角度线性化问题。
+
+离散卡尔曼滤波的预测与更新过程可概括如下：
+
+\textbf{预测步骤：}
+\begin{align}
+    \hat{\delta\bm{x}}_{k|k-1} &= \bm{\Phi}_{k,k-1} \hat{\delta\bm{x}}_{k-1|k-1} \label{eq:kf_pred_state} \\
+    \bm{P}_{k|k-1} &= \bm{\Phi}_{k,k-1} \bm{P}_{k-1|k-1} \bm{\Phi}_{k,k-1}^T + \bm{G}_{\text{SINS}} \bm{Q}_k \bm{G}_{\text{SINS}}^T \label{eq:kf_pred_cov}
+\end{align}
+
+\textbf{更新步骤：}
+\begin{align}
+    \bm{K}_k &= \bm{P}_{k|k-1} \bm{H}_k^T \left( \bm{H}_k \bm{P}_{k|k-1} \bm{H}_k^T + \bm{R}_k \right)^{-1} \label{eq:kf_K} \\
+    \hat{\delta\bm{x}}_{k|k} &= \hat{\delta\bm{x}}_{k|k-1} + \bm{K}_k \left( \delta\bm{z}_k^{\text{LC}} - \bm{H}_k \hat{\delta\bm{x}}_{k|k-1} \right) \label{eq:kf_update_state} \\
+    \bm{P}_{k|k} &= \left( \bm{I} - \bm{K}_k \bm{H}_k \right) \bm{P}_{k|k-1} \label{eq:kf_update_cov}
+\end{align}
+其中 \(\bm{\Phi}_{k,k-1}\) 由系统矩阵 \(\bm{F}_{\text{SINS}}\) 离散化得到（见式(2.3)），\(\bm{H}_k\) 为松组合观测矩阵（见式(2.9)），\(\bm{Q}_k\) 和 \(\bm{R}_k\) 分别为过程噪声协方差与观测噪声协方差。每次更新后，利用估计出的误差 \(\hat{\delta\bm{x}}_{k|k}\) 修正INS机械编排得到的名义状态，并将误差状态清零，进入下一轮递推。
+在工程实现上，离散时间之间的步长并不必须一致，其间隔时间可以根据传感器接收到的数据时间戳进行动态调整。因为IMU的数据更新速率一般大于GNSS，根据预测更新步骤各自的数据需求，可以在单独接受到IMU数据时执行更新，而在接收到时间戳匹配到IMU和GNSS数据时执行观测。
+
+（加个插图）（算了还是最后再加 介绍完LC再加）
+
+\subsection{紧耦合模型的差异}
+
+与松耦合（LC）架构不同，紧耦合（Tightly Coupled, TC）模型直接利用GNSS原始观测值（伪距、多普勒频移等）进行量测更新，从而克服了LC架构对卫星几何分布（DOP）的敏感性和少于四颗卫星时无法提供辅助的缺陷。本节将阐述TC模型在误差状态扩展、系统动态模型及观测模型上与LC模型的主要差异。
+
+\subsubsection{误差状态扩展}
+
+在TC模型中，滤波器的误差状态向量在SINS相关状态的基础上，增加了GNSS接收机时钟误差状态，即：
+\begin{equation}
+    \delta \bm{x}_{\text{TC}} = \left[ \delta \bm{x}_{\text{SINS}}^T,\; \delta \bm{x}_{\text{GNSS}}^T \right]^T
+    \label{eq:tc_state}
+\end{equation}
+其中 $\delta \bm{x}_{\text{SINS}}$ 与LC中的 $\delta \bm{x}_{\text{LC}}$ 相同（参见式~(\ref{eq:error_state})），而新增的GNSS状态为：
+\begin{equation}
+    \delta \bm{x}_{\text{GNSS}} = \left[ \delta(c\delta t_{\text{offset}}),\; \delta(c\delta t_{\text{drift}}) \right]^T
+    \label{eq:gnss_state}
+\end{equation}
+这里 $c\delta t_{\text{offset}}$ 为接收机钟距（时钟偏移），$c\delta t_{\text{drift}}$ 为钟漂（时钟漂移率）。这两项状态是紧耦合所特有的，用于在滤波器中实时估计并补偿接收机时钟误差，从而使原始伪距和多普勒观测值能够直接参与量测更新。
+
+\subsubsection{系统动态模型}
+
+TC模型的系统动态方程可写为分块对角形式，体现了SINS误差与GNSS时钟误差之间不存在直接耦合：
+\begin{equation}
+    \delta \dot{\bm{x}}_{\text{TC}} =
+    \begin{bmatrix}
+        \bm{F}_{\text{SINS}} & \bm{0}_{15 \times 2} \\
+        \bm{0}_{2 \times 15} & \bm{F}_{\text{GNSS}}
+    \end{bmatrix}
+    \delta \bm{x}_{\text{TC}} +
+    \begin{bmatrix}
+        \bm{G}_{\text{SINS}} & \bm{0}_{15 \times 2} \\
+        \bm{0}_{2 \times 15} & \bm{G}_{\text{GNSS}}
+    \end{bmatrix}
+    \begin{bmatrix}
+        \bm{w}_{\text{SINS}} \\
+        \bm{w}_{\text{GNSS}}
+    \end{bmatrix}
+    \label{eq:tc_dynamics}
+\end{equation}
+其中 $\bm{F}_{\text{SINS}}$、$\bm{G}_{\text{SINS}}$、$\bm{w}_{\text{SINS}}$ 与松耦合模型中的定义一致（见式~(\ref{eq:matrix_dynamic})）。对于接收机时钟误差，其动力学模型采用常见的随机游走模型：
+\begin{equation}
+    \begin{cases}
+        \delta(c\dot{\delta}t_{\text{offset}}) = \delta(c\delta t_{\text{drift}}) + \eta_{\text{offset}} \\[4pt]
+        \delta(c\dot{\delta}t_{\text{drift}}) = \eta_{\text{drift}}
+    \end{cases}
+    \label{eq:clock_dynamics}
+\end{equation}
+因此，
+\begin{equation}
+    \bm{F}_{\text{GNSS}} = \begin{bmatrix} 0 & 1 \\ 0 & 0 \end{bmatrix},\quad
+    \bm{G}_{\text{GNSS}} = \bm{I}_{2\times 2},\quad
+    \bm{w}_{\text{GNSS}} = \begin{bmatrix} \eta_{\text{offset}} \\ \eta_{\text{drift}} \end{bmatrix}
+    \label{eq:clock_matrices}
+\end{equation}
+$\eta_{\text{offset}}$ 和 $\eta_{\text{drift}}$ 分别为钟距和钟漂的驱动噪声，其谱密度可通过Allan方差分析确定。对于温补晶振（TCXO），典型参数可参考相关文献\cite{angrisano2010gnss}。离散化后，系统状态转移矩阵 $\bm{\Phi}_{k,k-1}^{\text{TC}}$ 由 $\bm{F}_{\text{SINS}}$ 和 $\bm{F}_{\text{GNSS}}$ 分别离散化后组合而成。
+
+\subsubsection{观测模型}
+
+TC模型使用经误差校正后的伪距 $\hat{\rho}_{\text{GNSS}}^{(n)}$ 和多普勒 $\dot{\hat{\rho}}_{\text{GNSS}}^{(n)}$ 作为量测参考，与SINS机械编排推算出的预测伪距 $\hat{\rho}_{\text{SINS}}^{(n)}$ 和预测伪距率 $\dot{\hat{\rho}}_{\text{SINS}}^{(n)}$ 作差，构成量测向量：
+\begin{equation}
+    \delta \bm{z}_k^{\text{TC}} =
+    \begin{bmatrix}
+        \delta \bm{z}_{\rho} \\[2pt]
+        \delta \bm{z}_{\dot{\rho}}
+    \end{bmatrix}
+    =
+    \begin{bmatrix}
+        \hat{\rho}_{\text{SINS}}^{(1)} - \hat{\rho}_{\text{GNSS}}^{(1)} \\
+        \vdots \\
+        \hat{\rho}_{\text{SINS}}^{(m)} - \hat{\rho}_{\text{GNSS}}^{(m)} \\[4pt]
+        \dot{\hat{\rho}}_{\text{SINS}}^{(1)} - \dot{\hat{\rho}}_{\text{GNSS}}^{(1)} \\
+        \vdots \\
+        \dot{\hat{\rho}}_{\text{SINS}}^{(m)} - \dot{\hat{\rho}}_{\text{GNSS}}^{(m)}
+    \end{bmatrix}
+    \label{eq:tc_meas_vector}
+\end{equation}
+其中 $m$ 为当前可见卫星数。
+
+对于原始观测值，需先进行系统误差校正：
+\begin{equation}
+    \begin{cases} 
+        \tilde{\rho}_{\text{GNSS}}^{(n)} = \rho^{(n)} + c\delta t^{(n)} - I^{(n)} - T^{(n)} \\[4pt]
+        \dot{\tilde{\rho}}_{\text{GNSS}}^{(n)} = \dot{\rho}^{(n)} + \delta f^{(n)}
+    \end{cases}
+    \label{eq:gnss_corrections}
+\end{equation}
+其中 $\tilde{\rho}_{\text{GNSS}}^{(n)}$ 和 $\dot{\tilde{\rho}}_{\text{GNSS}}^{(n)}$ 分别为 GNSS 天线相位中心处校正后的伪距和多普勒测量值；$\rho^{(n)}$ 和 $\dot{\rho}^{(n)}$ 为原始伪距和多普勒测量值，$n = 1, 2, \cdots, m$；$c\delta t^{(n)}$、$\delta f^{(n)}$、$I^{(n)}$、$T^{(n)}$ 分别为卫星钟差、卫星钟漂、电离层传播误差和对流层传播误差的修正项，均可从广播星历中获得。
+
+预测伪距和伪距率由SINS输出的用户位置 $\bm{r}_{\text{GNSS}}$、速度 $\bm{v}_{\text{GNSS}}$ 及接收机时钟状态计算得到：
+
+\begin{align}
+    \hat{\rho}_{\text{SINS}}^{(n)} &= \left\| \bm{r}_{satellite}^{(n)} - \bm{r}_{\text{GNSS}} \right\| + c\delta t_{\text{offset}} \label{eq:pred_pseudo} \\
+    \dot{\hat{\rho}}_{\text{SINS}}^{(n)} &= \left( \bm{v}_{satellite}^{(n)} - \bm{v}_{\text{GNSS}} \right) \cdot \bm{u}^{(n)} + c\delta t_{\text{drift}} \label{eq:pred_doppler}
+\end{align}
+式中 $\bm{r}_{satellite}^{(n)}$、$\bm{v}_{satellite}^{(n)}$ 为卫星自身在发射信号时的位置和速度，可以由星历得到，$\bm{u}^{(n)} = -(\bm{r}^{(n)} - \bm{r}_{\text{GNSS}}) / \|\bm{r}^{(n)} - \bm{r}_{\text{GNSS}}\|$ 为视线方向单位向量。$\bm{r}_{\text{GNSS}}$ 和 $\bm{v}_{\text{GNSS}}$ 为使用IMU位置速度推导的GNSS位置速度，需要通过杆臂效应从IMU中心转换到GNSS天线中心：
+\begin{align}
+    \bm{r}_{\text{GNSS}} &= \bm{r}_{\text{SINS}} + \bm{C}_b^n \bm{\ell}^b \label{eq:lever_pos} \\
+    \bm{v}_{\text{GNSS}} &= \bm{v}_{\text{SINS}} - (\bm{\omega}_{in}^n \times) \bm{C}_b^n \bm{\ell}^b - \bm{C}_b^n (\bm{\ell}^b \times \bm{\omega}_{ib}^b) \label{eq:lever_vel}
+\end{align}
+其中 $\bm{\ell}^b$ 为IMU中心到GNSS天线中心的杆臂向量在载体坐标系下的投影。
+
+将式~(\ref{eq:lever_pos})、(\ref{eq:lever_vel}) 代入~(\ref{eq:pred_pseudo})、(\ref{eq:pred_doppler})，并对状态进行一阶泰勒展开，可得线性化量测方程：
+\begin{equation}
+    \delta \bm{z}_k^{\text{TC}} = \bm{H}_k^{\text{TC}} \cdot \delta \bm{x}_{\text{TC}} + \bm{e}_{\text{TC}}
+    \label{eq:tc_meas_linear}
+\end{equation}
+其中 $\bm{e}_{\text{TC}}$ 为伪距和多普勒观测噪声向量，其协方差矩阵 $\bm{R}_{\text{TC}}$ 通常根据卫星仰角或信噪比进行经验设定。设计矩阵 $\bm{H}_k^{\text{TC}}$ 的具体形式为：
+\[
+    \bm{H}_k^{\text{TC}} =
+    \begin{bmatrix}
+        -\bm{u}^{(1)} \bm{C}_e^n & \bm{0}_{1\times3} & \bm{0}_{1\times3} & \bm{0}_{1\times3} & \bm{0}_{1\times3} & 1 & 0 \\
+        -\bm{u}^{(2)} \bm{C}_e^n & \bm{0}_{1\times3} & \bm{0}_{1\times3} & \bm{0}_{1\times3} & \bm{0}_{1\times3} & 1 & 0 \\
+        \vdots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots \\
+        -\bm{u}^{(m)} \bm{C}_e^n & \bm{0}_{1\times3} & \bm{0}_{1\times3} & \bm{0}_{1\times3} & \bm{0}_{1\times3} & 1 & 0 \\[6pt]
+        \bm{0}_{1\times3} & -\bm{u}^{(1)} \bm{C}_e^n & \bm{0}_{1\times3} & \bm{0}_{1\times3} & \bm{0}_{1\times3} & 0 & 1 \\
+        \bm{0}_{1\times3} & -\bm{u}^{(2)} \bm{C}_e^n & \bm{0}_{1\times3} & \bm{0}_{1\times3} & \bm{0}_{1\times3} & 0 & 1 \\
+        \vdots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots \\
+        \bm{0}_{1\times3} & -\bm{u}^{(m)} \bm{C}_e^n & \bm{0}_{1\times3} & \bm{0}_{1\times3} & \bm{0}_{1\times3} & 0 & 1
+    \end{bmatrix}_{2m \times 17}
+\]
+其中 $\bm{C}_e^n$ 为地球坐标系至导航坐标系的转换矩阵，实际实现中常将位置误差 $\delta \bm{r}^n$ 直接投影至视线方向，故上述矩阵中的 $-\bm{u}^{(n)} \bm{C}_e^n$ 可简化为 $-\bm{u}^{(n)}$ 乘以适当的方向余弦。详细推导可参考文献\cite{groves2008principles, angrisano2010gnss}。
+
+% \subsubsection{与松耦合的主要优势对比}
+
+% 相比于LC架构，TC模型具有以下关键优势，尤其适用于城市峡谷等GNSS信号苛刻环境：
+
+% \begin{enumerate}
+%     \item \textbf{对卫星几何分布不敏感}：TC的量测方程直接利用了每颗卫星的视线方向，其观测噪声协方差矩阵 $\bm{R}_{\text{TC}}$ 与DOP无关。即使卫星几何分布很差（DOP值很大），TC滤波器仍能合理加权各观测值，不会出现LC中位置解算协方差剧烈波动的问题。
+    
+%     \item \textbf{支持少于四颗卫星的辅助}：当可见卫星数少于4颗时，LC架构因无法获得三维位置解而完全失去GNSS辅助；而TC架构仍可利用1至3颗卫星的伪距和多普勒观测值对INS误差进行部分约束，有效抑制误差发散。
+    
+%     \item \textbf{便于实现异常值鲁棒性}：TC的量测残差（新息）具有明确的物理意义（伪距/多普勒残差），便于基于新息统计检验（如卡方检验）构造鲁棒因子，从而抵抗多路径或干扰引起的GNSS异常值。而LC中位置/速度残差受到DOP和时钟误差的耦合影响，异常检测更为困难。
+    
+%     \item \textbf{便于融合非完整约束等虚拟观测}：TC框架下，SINS误差状态与GNSS时钟状态分离，当GNSS信号完全中断时，可无缝切换至非完整约束（NHC）等虚拟观测进行纯惯性递推，无需改变滤波器结构。
+% \end{enumerate}
+
+可以见的，相比于LC模型，TC模型有着诸多方面的优势，其相较于LC模型，（\note{lc模型也不一定就直接用了没滤波的GNSS生值啊}多考虑了大气层折射、发送接收端时钟延迟和卫星角度等因素，并利用滤波器等特性以马尔可夫过程对钟漂进行建模，以指数模型（DOP）对观测可信度进行建模。且其结合误差模型等特性充分利用了数据，使得在卫星数量不足时系统也可以维持运行，不像LC模型直接丢失输出\note{润色一下}
+% TC的量测残差（新息）具有明确的物理意义（伪距/多普勒残差），便于基于新息统计检验（如卡方检验）构造鲁棒因子，从而抵抗多路径或干扰引起的GNSS异常值。而LC中位置/速度残差受到DOP和时钟误差的耦合影响，异常检测更为困难。
+
+正是由于上述优势，本文后续章节将在TC模型基础上，进一步引入MCKF，以全面提升城市环境下MEMS-GNSS/INS组合导航的精度与可靠性。
+

@@ -1,0 +1,412 @@
+# 之前生成的大量 的 算法介绍 
+
+\subsection{惯性传感器的数学模型}
+
+\subsubsection{直接建模方法}
+
+在基于滤波的GNSS/INS组合导航系统中，根据系统状态变量选取方式的不同，
+常见的建模方法可分为直接方法（Direct Method）和间接方法（Indirect Method）。
+其中，直接方法是一种以导航参数本身为系统状态量的建模方式，
+该方法在早期组合导航研究中得到了广泛应用。
+
+直接建模方法的基本思想是：将惯性导航系统计算得到的导航参数，
+例如位置、速度和姿态等作为滤波器的状态变量，
+并利用惯性导航的运动学方程描述系统状态的演化过程。
+同时，GNSS观测量（如位置和速度）直接作为观测方程，
+用于修正INS计算结果，从而实现组合导航解算。
+
+与间接方法相比，直接方法具有较为直观的物理意义。
+该方法将导航参数本身作为状态变量，
+使滤波器不仅承担误差估计的功能，
+同时也直接完成导航解算过程，
+从而避免了在惯性导航计算与误差修正之间进行重复计算，
+在一定程度上提高了计算效率。
+此外，由于直接方法采用完整的导航运动学模型，
+其状态方程能够较准确地反映系统真实的动态特性，
+相比间接方法中对误差方程进行一阶线性近似的处理，
+具有更高的物理一致性。 \cite{HU2018755}
+
+在直接建模方法中，系统状态通常定义为导航参数向量，例如
+
+\begin{equation}
+\mathbf{x}
+=
+\begin{bmatrix}
+\boldsymbol{p} \\
+\boldsymbol{v} \\
+\boldsymbol{\phi}
+\end{bmatrix}
+\end{equation}
+
+其中，
+$\boldsymbol{p}$ 表示位置向量，
+$\boldsymbol{v}$ 表示速度向量，
+$\boldsymbol{\phi}$ 表示姿态角向量（如欧拉角）。
+
+系统状态方程通常由惯性导航的姿态方程、
+速度方程和位置方程构成。
+例如，在地理坐标系（East-North-Up, ENU）下，
+姿态更新方程可表示为
+
+\begin{equation}
+\dot{\boldsymbol{\phi}}
+=
+\mathbf{M}
+\left(
+\boldsymbol{\omega}_{gb}^{b}
++
+\boldsymbol{\varepsilon}
+\right)
++
+\mathbf{M}
+\boldsymbol{w}_{\varepsilon}
+\end{equation}
+
+其中，
+$\boldsymbol{\omega}_{gb}^{b}$ 表示机体系到导航坐标系的角速度，
+$\boldsymbol{\varepsilon}$ 表示陀螺零偏，
+$\boldsymbol{w}_{\varepsilon}$ 表示陀螺白噪声，
+$\mathbf{M}$ 为姿态变换矩阵。 \cite{HU2018755}
+
+对应的速度方程可表示为
+
+\begin{equation}
+\dot{\boldsymbol{v}}
+=
+\boldsymbol{f}
+-
+\left(
+2\boldsymbol{\omega}_{ie}
++
+\boldsymbol{\omega}_{en}
+\right)
+\times
+\boldsymbol{v}
++
+\boldsymbol{g}
+\end{equation}
+
+位置方程则可表示为
+
+\begin{equation}
+\dot{\boldsymbol{p}}
+=
+\mathbf{T}
+\boldsymbol{v}
+\end{equation}
+
+上述方程共同构成了直接建模方法中的系统状态模型，
+其通过惯性测量单元（IMU）输出的角速度和比力信息，
+递推计算导航参数。
+
+% 在观测模型方面，
+% GNSS提供的位置和速度信息通常作为观测量，
+% 其观测方程可表示为
+
+% \begin{equation}
+% \mathbf{z}
+% =
+% \mathbf{H}
+% \mathbf{x}
+% +
+% \mathbf{v}
+% \end{equation}
+
+% 其中，
+% $\mathbf{z}$ 表示GNSS观测向量，
+% $\mathbf{H}$ 为观测矩阵，
+% $\mathbf{v}$ 表示观测噪声。
+
+需要指出的是，
+由于直接方法的状态方程通常包含非线性项，
+例如姿态更新和速度更新中的非线性耦合关系，
+传统线性卡尔曼滤波（KF）难以直接应用，
+因此在实际应用中，
+通常采用扩展卡尔曼滤波（EKF）、
+无迹卡尔曼滤波（UKF）等非线性滤波方法进行状态估计。
+然而，这种非线性特性也使得直接方法在计算复杂度和稳定性方面
+面临一定挑战。 \cite{HU2018755}
+
+总体而言，
+直接建模方法通过对导航参数进行直接估计，
+能够较真实地反映系统动力学特性，
+具有模型物理意义清晰的优点，
+但由于系统非线性较强，
+其在现代组合导航系统中的应用逐渐被误差状态建模的间接方法所取代，
+后者在工程实践中表现出更好的数值稳定性和计算效率。
+
+\subsubsection{间接建模方法}
+
+下面对惯性导航系统的间接建模方法进行阐述。
+
+在间接建模方法中，
+系统并不直接对导航参数进行估计，
+而是对导航误差进行建模与估计。
+通过建立误差状态模型，
+并利用滤波方法对误差进行估计，
+再将估计误差反馈修正导航解，
+可以有效提高系统稳定性与计算精度，
+同时降低导航解的数值发散风险。
+
+典型的惯性导航系统误差状态通常包括：
+位置误差、速度误差、姿态误差以及惯性器件误差，在这里其他误差项被忽略或涵盖其中
+因此系统误差状态向量可表示为
+
+\begin{equation}
+\mathbf{x}
+=
+[
+\delta \mathbf{r}^n,
+\delta \mathbf{v}^n,
+\boldsymbol{\phi},
+\boldsymbol{\varepsilon}^b,
+\nabla^b
+]^T
+\end{equation}
+
+其中，
+$\delta \mathbf{r}^n$、
+$\delta \mathbf{v}^n$、
+$\boldsymbol{\phi}$
+分别表示位置误差、速度误差以及姿态误差，
+$\boldsymbol{\varepsilon}^b$
+与 $\nabla^b$
+分别表示陀螺和加速度计零偏误差。
+
+误差状态方程的建立，
+通常基于惯性导航基本方程，
+通过对导航方程进行一阶线性化，
+并忽略高阶小量，
+可得到误差传播模型。
+在小角度假设条件下，
+姿态误差通常采用等效旋转矢量表示，
+并利用方向余弦矩阵的小扰动展开，
+从而得到位置、速度及姿态误差之间的耦合关系。
+
+根据惯性导航系统的位置更新方程，
+可以推导得到位置误差传播方程；
+同理，
+由速度更新方程可得到速度误差传播方程；
+而由姿态更新方程，
+结合小角度误差模型，
+可以得到姿态误差传播方程。
+此外，
+考虑惯性器件误差通常具有随机游走或一阶高斯–马尔可夫过程特性，
+可建立陀螺及加速度计零偏误差模型。
+
+综合上述各误差传播关系，
+惯性导航系统误差状态模型
+可统一表示为如下形式：
+
+\begin{equation}
+\begin{aligned}
+\delta \dot{\mathbf{r}}^n
+&= -\boldsymbol{\omega}_{en}^n \times \delta \mathbf{r}^n + \delta \mathbf{v}^n, \\
+\delta \dot{\mathbf{v}}^n
+&= \mathbf{C}_b^n \mathbf{f}^b \times \boldsymbol{\phi}
+	- (2\boldsymbol{\omega}_{ie}^n + \boldsymbol{\omega}_{en}^n) \times \delta \mathbf{v}^n \\
+&\quad - (2\delta \boldsymbol{\omega}_{ie}^n + \delta \boldsymbol{\omega}_{en}^n) \times \mathbf{v}^n
+	+ \delta \mathbf{g}^n + \mathbf{C}_b^n \nabla^b, \\
+\dot{\boldsymbol{\phi}}
+&= -\boldsymbol{\omega}_{in}^n \times \boldsymbol{\phi}
+	+ \delta \boldsymbol{\omega}_{in}^n - \mathbf{C}_b^n \boldsymbol{\varepsilon}^b, \\
+\dot{\boldsymbol{\varepsilon}}^b
+&= -\frac{1}{T_{\varepsilon}}\boldsymbol{\varepsilon}^b + \mathbf{w}_{\varepsilon}, \\
+\dot{\nabla}^b
+&= -\frac{1}{T_{\nabla}}\nabla^b + \mathbf{w}_{\nabla}.
+\end{aligned}
+\end{equation}
+
+其中：
+
+$\boldsymbol{\omega}_{ie}^n$
+为地球自转角速度；
+
+$\boldsymbol{\omega}_{en}^n$
+为导航坐标系相对地球坐标系角速度；
+
+$\boldsymbol{\omega}_{in}^n$
+为导航坐标系相对惯性坐标系角速度；
+
+$\mathbf{C}_b^n$
+为体坐标系到导航坐标系的方向余弦矩阵；
+
+$\mathbf{f}^b$
+为加速度计测得的比力；
+
+$\delta \mathbf{g}^n$
+为重力误差项；
+
+$\mathbf{w}_{\varepsilon}$ 与
+$\mathbf{w}_{\nabla}$
+分别表示陀螺与加速度计误差驱动噪声。
+
+\subsection{GNSS误差建模方法}
+
+准确描述GNSS观测值的随机特性是提升导航定位精度的关键。城市复杂环境下，多路径效应、非视距信号、大气延迟残余及接收机噪声使观测误差呈现非平稳、非高斯及时空相关等复杂特征。为应对上述挑战，学术界与工程界发展了多种误差建模方法，可归纳为三类\note{（真的只有三类吗）}：参数化先验模型、非参数化时空模型，以及面向非高斯噪声与异常值的抗差模型。本节将结合具体文献的数学表达，分别阐述这三类方法的核心思想与实现方式。
+
+\note{后面记得衔接一下}
+\note{这个也跑一下ai润色}
+此外，如\cite{electronics14040660}等方法，也给予了我们一定启发，在建模状态过程中忽略GNSS等噪声模型，用GNSS信息进行直接滤波，而后再根据\note{某些神秘特性}结合FGO的原理，对滤波器的输出序列进行最大后验优化，不失为一种手段。
+
+\subsubsection{参数化先验模型}
+参数化模型通过构建观测噪声方差与信号质量指标（如仰角、信噪比）之间的函数关系，实现观测值的先验加权。该类方法计算效率高、便于实时应用，是当前商用接收机与紧耦合导航系统中最常用的随机模型。
+
+\paragraph{仰角指数模型}
+卫星仰角是影响观测质量的首要因素。低仰角卫星信号传播路径更长，受多路径和大气延迟影响更显著。文献\cite{xie2025adaptive}针对GPS与BDS系统分别拟合了指数形式的仰角加权模型，如式~\ref{eq:ele_exp}所示：
+\begin{equation}
+\sigma_{G,i} = 0.6978 + 3.9773 \times e^{-\frac{E_i}{12.789}}, \quad
+\sigma_{C,i} = 0.5412 + 8.3211 \times e^{-\frac{E_i}{7.222}}
+\label{eq:ele_exp}
+\end{equation}
+其中 $\sigma_{G,i}$ 和 $\sigma_{C,i}$ 分别为GPS和BDS卫星伪距观测的先验标准差，$E_i$ 为第 $i$ 颗卫星的仰角（单位：度）。该模型赋予低仰角卫星更大的方差（更低权重），物理意义明确且可实时计算，在复杂城市环境中显著提升了单点定位精度。
+
+\subsubsection{非参数化时空模型}
+非参数化方法不预先假定函数形式，而是利用误差的时空重复性直接对系统误差建模。典型代表为恒星日滤波和多路径半球图，其核心思想是将多路径误差 $\varepsilon_{\text{mp}}$ 表达为高度角 $\theta$ 和方位角 $\alpha$ 的函数：
+\begin{equation}
+\varepsilon_{\text{mp}}(t) = \mathcal{F}\big(\theta(t), \alpha(t)\big) + \eta(t)
+\label{eq:mp_map}
+\end{equation}
+其中 $\mathcal{F}(\cdot)$ 为统计得到的多路径误差地图，$\eta(t)$ 为残余随机噪声。利用卫星轨道约1恒星日的重复周期，可从前一周期观测值中提取 $\mathcal{F}(\cdot)$，用于修正当前周期观测，从而有效抑制多路径影响。此类方法在连续监测站和重复轨迹动态测量中性能优异，相关研究可参见文献 “蓝蓝路”\note{记得改了}
+% \cite{Wang2018}
+引用的工作“玛卡巴卡”
+% \cite{Dissanayake2001, Falco2012}。
+
+\subsubsection{面向非高斯噪声与异常值的抗差建模}
+当观测误差呈现重尾分布或突发异常时，上述两类方法的假设前提被破坏，需采用更灵活的统计模型或抗差机制。下面介绍一种抗差建模思路
+
+\paragraph{创新检测与渐消因子}
+文献\cite{8930069}在紧耦合GNSS/INS系统中，利用创新序列的卡方检验检测GNSS异常，并引入渐消因子动态调整卡尔曼增益。创新向量 $\mathbf{v}_k$ 及其理论协方差 $\mathbf{C}_k$ 定义为：
+\begin{equation}
+\mathbf{v}_k = \mathbf{z}_k - \mathbf{H}_k \mathbf{\Phi}_{k,k-1} \mathbf{x}_{k-1}, \quad
+\mathbf{C}_k = \mathbf{H}_k \mathbf{P}_{k/k-1} \mathbf{H}_k^T + \mathbf{R}_k
+\label{eq:innovation}
+\end{equation}
+检验统计量 $T_k = \mathbf{v}_k^T \mathbf{C}_k^{-1} \mathbf{v}_k$ 服从自由度为 $2m$（$m$ 为可见卫星数）的卡方分布。当 $T_k > \chi_{2m}^2(\alpha)$ 时判定存在异常，计算渐消因子：
+\begin{equation}
+\gamma_k = \begin{cases}
+1, & T_k \leq \chi_{2m}^2(\alpha) \\[4pt]
+\dfrac{T_k}{\chi_{2m}^2(\alpha)}, & T_k > \chi_{2m}^2(\alpha)
+\end{cases}, \quad
+\tilde{\mathbf{C}}_k = \gamma_k \mathbf{C}_k
+\label{eq:fading_factor}
+\end{equation}
+卡尔曼增益相应调整为 $\mathbf{K}_k = \mathbf{P}_{k/k-1} \mathbf{H}_k^T \tilde{\mathbf{C}}_k^{-1}$，从而在异常发生时降低观测更新权重，保障滤波稳定性。
+
+\paragraph{抗差方差膨胀与自适应核带宽}
+文献\cite{Xie2025}将抗差估计与最大相关熵准则（MCC）结合，通过IGGIII函数对观测噪声协方差进行膨胀，并自适应调整MCC中的核带宽。IGGIII方差膨胀因子 $\xi_k$ 由标准化残差 $\tilde{v}_k$ 确定：
+\begin{equation}
+\xi_k = \begin{cases}
+1, & |\tilde{v}_k| \leq k_0 \\[4pt]
+\dfrac{k_0}{|\tilde{v}_k|} \left( \dfrac{k_1 - |\tilde{v}_k|}{k_1 - k_0} \right)^2, & k_0 < |\tilde{v}_k| \leq k_1 \\[4pt]
+10^{-4}, & |\tilde{v}_k| > k_1
+\end{cases}
+\label{eq:iggiii}
+\end{equation}
+其中典型阈值 $k_0=1.5$，$k_1=3.0$，$\tilde{v}_k = \gamma_k / \sqrt{\hat{\sigma}_0^2 P_{\gamma_k}}$。膨胀后的等效观测噪声协方差为 $\tilde{R}_k = R_k / \xi_k$。同时，为适应时变噪声环境，核带宽根据状态预测协方差和观测噪声协方差自适应调整：
+\begin{equation}
+\sigma_{k,x} = \sqrt{\mathrm{tr}\left(\mathbf{P}_{k|k-1}\right)}, \quad
+\sigma_{k,y} = \sqrt{\mathrm{tr}\left(\hat{\mathbf{R}}_k\right)}
+\label{eq:adaptive_kernel}
+\end{equation}
+其中 $\hat{\mathbf{R}}_k$ 由创新序列估计得到。该机制使滤波器能够动态调整对高阶统计量的敏感度，在非高斯重尾噪声及极端异常观测下保持优异鲁棒性。
+
+\subsubsection{小结}
+综上所述，GNSS误差建模已从简单的常数方差假设发展为多元化、自适应、时空动态的体系。参数化模型计算轻量、易于实时嵌入；非参数化模型擅长抑制系统性多路径误差；抗差与非高斯模型则为处理复杂异常提供了坚实保障。在实际导航系统中，这三类方法往往组合使用：以参数化模型构建基础随机模型，利用抗差估计处理突发异常，必要时辅以非参数化模型消除残余系统误差，从而实现全场景下的高精度、高可靠性定位。
+
+% \subsection{误差的滤波方法}
+
+% 在获得了系统的状态空间表达之后，我们即可根据不同的最优化理念，进行信息滤波，这里有一些常见的方法基于不同的理念和假设
+
+% KF
+% 简单介绍，假设高斯白噪声形式的过程噪声和观测噪声，以协方差最小为前提进行最优递归迭代
+% EKF
+% 对于KF无法解决的非线性问题，以一阶泰勒展开进行数值点附近的局部线性化
+% UKF
+% （我不太会 帮我写一下），解决了EKF在极端情况下的误差，减小滤波器算法本身带来的误差
+% Lie group \cite{9737005} 
+% 一种应用李群进行改善的方法，进一步解决EKF UKF进行非线性化带来的误差，但是依然是对滤波器本身进行的改进
+
+% 上述滤波器仅仅讨论噪声高斯分布的情形
+% 还有一些滤波算法对工程实践问题中，观测噪声和过程噪声不符合高斯分布的部分进行优化，从而提高鲁棒性
+
+% CKF \cite{izanloo2016kalman} \cite{xie2025adaptive}
+% 利用了泛函分析中核函数的原理，将滤波升维到更高维度进行滤波，这对GNSS定位问题中的某些突发数据的解决和滤除非常有帮助
+% RKF / AKF \cite{yang2010robust} \cite{Sage1969AdaptiveFW}
+% 根据？观测与目前的状态量？之间的差距动态调整协方差矩阵的系数，提高在异常值和滤波器发散时对噪声的抗性和鲁棒性
+
+
+% 还有一些方法，根据最大似然或者最大后验原理，对滤波器的输出结果序列进行二次迭代优化，从而得到更优化的结果
+
+% FGO方法 \cite{WOS:000652850700001} \cite{electronics14040660}
+% 最大后验和极大似然估计 
+
+
+\subsection{误差的滤波方法}
+
+在获得系统的状态空间表达之后，即可根据不同的最优化理念进行信息滤波。以下介绍几类常见的方法，它们在模型假设与估计准则上各有侧重。
+
+\subsubsection{基于高斯假设的滤波方法}
+
+\textbf{卡尔曼滤波（KF）}假设过程噪声与观测噪声均为高斯白噪声，在线性最小均方误差准则下实现最优递归估计。其核心是通过预测与更新两步递推，得到状态的后验估计。
+
+\textbf{扩展卡尔曼滤波（EKF）}将KF推广至非线性系统，通过一阶泰勒展开在估计点附近进行局部线性化，获得雅可比矩阵后沿用KF框架。该方法在非线性较弱时效果良好，但当系统强非线性或初始误差较大时，线性化误差易导致滤波发散。
+
+\textbf{无迹卡尔曼滤波（UKF）}为解决EKF线性化误差问题，UKF采用确定性采样策略，通过一组精心选取的Sigma点近似状态的后验分布。这些Sigma点经非线性函数传播后，再利用加权统计计算均值和协方差，避免了显式线性化，从而在强非线性系统中获得更高精度。
+
+\textbf{基于李群的滤波方法}将状态建模于李群流形上，利用群运算保持状态的几何一致性，避免欧氏空间近似带来的误差。文献\cite{9737005}将惯导系统姿态、速度等状态定义于$SE(3)$群，并在此流形上推导滤波更新方程，有效抑制了EKF和UKF因参数化不当引入的误差。
+
+上述方法均假设过程噪声与观测噪声服从高斯分布。然而在城市GNSS定位中，多径与非视距信号常导致观测噪声呈现非高斯、重尾甚至异常值特征，需要引入更鲁棒的滤波机制。
+
+\subsubsection{面向非高斯噪声的鲁棒滤波}
+
+\textbf{最大相关熵卡尔曼滤波（CKF）}通过引入核函数将误差度量从二阶矩提升至更高阶统计量，从而增强对非高斯噪声与异常值的鲁棒性。其核心是用高斯核函数$G_{\sigma}(u)=\exp(-u^{2}/(2\sigma^{2}))$替代最小均方误差准则，在固定点迭代中自适应调整权重。文献\cite{xie2025adaptive}进一步提出了自适应核带宽策略：
+\begin{equation}
+\sigma_{k,x} = \sqrt{\mathrm{tr}\left(\mathbf{P}_{k|k-1}\right)},\quad 
+\sigma_{k,y} = \sqrt{\mathrm{tr}\left(\hat{\mathbf{R}}_k\right)}
+\end{equation}
+其中$\mathbf{P}_{k|k-1}$为状态预测协方差，$\hat{\mathbf{R}}_k$由新息序列估计得到。该机制使滤波器能动态适应不同环境下的噪声特性。
+
+\textbf{抗差卡尔曼滤波（RKF）与自适应卡尔曼滤波（AKF）}分别应对观测异常和噪声统计未知两类问题。RKF通过构造等价权函数抑制异常观测影响，如IGGIII方案：
+\begin{equation}
+\alpha_i = \begin{cases}
+1, & |\tilde{v}_i| \leq k_0 \\[4pt]
+\dfrac{|\tilde{v}_i|}{k_0}\left(\dfrac{k_1 - k_0}{k_1 - |\tilde{v}_i|}\right)^2, & k_0 < |\tilde{v}_i| \leq k_1 \\[4pt]
+10^{6}, & |\tilde{v}_i| > k_1
+\end{cases}
+\end{equation}
+其中$\tilde{v}_i$为标准化残差，$k_0$、$k_1$为经验阈值\cite{yang2010robust}。AKF则在线估计噪声协方差，典型如Sage-Husa自适应滤波\cite{Sage1969AdaptiveFW}，通过新息序列实时更新$\mathbf{R}_k$和$\mathbf{Q}_k$，以适应时变噪声环境。
+
+\subsubsection{基于优化的序列估计方法}
+
+上述滤波方法均为递推估计，仅利用当前时刻观测更新状态。为进一步挖掘历史信息中的约束，因子图优化（FGO）将状态估计建模为最大后验（MAP）问题，并转化为非线性最小二乘优化：
+\begin{equation}
+\hat{\mathbf{X}} = \arg\min_{\mathbf{X}} \sum_j \left\| h_j(\mathbf{x}_j) - \mathbf{z}_j \right\|_{\Sigma_j}^2
+\end{equation}
+其中$\mathbf{X}=\{\mathbf{x}_1,\dots,\mathbf{x}_K\}$为滑动窗口内所有状态，$h_j(\cdot)$为对应传感器观测模型。FGO通过多次迭代同时优化窗口内所有历史状态，充分利用了INS因子在时间上的连续性，使GNSS异常观测被正常观测“拉回”\cite{WOS:000652850700001}。文献\cite{electronics14040660}在模拟粗差与GNSS信号中断场景下验证，FGO相比EKF与RKF在位置、速度、姿态上分别提升最高达81.1\%、73.8\%和75.1\%，展现出更强的鲁棒性与全局一致性。
+
+\section{本文研究意义}
+
+\note{在这里我想先写一下目前的思路}
+老师 目前情况就是 我感觉吧GNSS/INS 甚至是单独GNSS方向的高被引论文和新论文基本都读了一遍，上面的成果虽然经过了gpt润色，但是提纲都是我自己写的，基本表达了我目前易掌握的知识
+
+我现在的想法是
+首先 ins存在的误差 用上面提到的误差模型基本可以修正（我从捷联惯导的书中看到的，基本就是该领域的经典方法了），对于直接方法来说，参考\citet{hu2018new}的一种直接方法的介绍，他把ins的某部分输入直接当做状态量过程函数的一部分加进去了，没有考虑误差，我认为是不妥当的。
+虽然误差方法还是忽略了一些误差形式但是我觉得已经够用了
+对于gnss的误差\citet{electronics14040660}中提到的形式，用gnss观测和ins观测的差作为误差模型的观测量，我觉得是不妥当的，虽然后面按照MAP的思路进行了迭代，使得一部分GNSS的突发噪声被处理掉了，但是我认为像\citet{xie2025adaptive}或者\citet{8930069}中对GNSS的处理思路是更可靠的，还是要对GNSS信号进行一个建模。之后像\citet{xie2025adaptive}跑一个CKF应该可以滤掉突发噪声
+
+如何把他们的数据结合起来 看了这么多篇论文我依然觉得\citet{8930069}的fig5是一个非常棒的流程，而后他对gnss长期离线和gnss发散的两个特殊处理也非常值得学习，应该也借鉴了一部分RKF的原理
+
+为了保证论文要创新点，我要不要再把MAP FGO等方法也融合进去呢，如果按照上述这个说法，我只是把两篇论文搓在了一起，但是如果再加一个FGO，我就能把三个论文搓在一起了（（（（
+
+剩下的部分实在没思路了，稍后把所有pdf附上
+
+
+
+\section{论文结构}
+
+第一章为绪论部分，其实我也没想好做啥，就把所有看过的觉得就是这个方向的论文原理全都摘出来了，\note{todo} 后面做什么就把相关的一些公式摘到下面的二三四章的推导部分，我觉得应该是这样的哈哈哈
+第二章
+第三章  都是推导部分
+第四章 实验 benchmark 我看大伙都是这个结构 
+第五章 总结和展望，总结了全文的研究，指出了当前工作的不足，并对未来在GNSS/INS可能的工作和优化方向进行讨论

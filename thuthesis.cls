@@ -854,8 +854,12 @@
     \widowpenalty4000%
     \interlinepenalty4000%
     \sfcode`\.\@m}
-   {\def\@noitemerr
-     {\@latex@warning{Empty `thebibliography' environment}}%
+   {%
+    % Keep compatibility with newer LaTeX kernels when bibliography is empty.
+    \if@newlist
+      \@latex@warning{Empty `thebibliography' environment}%
+      \global\@newlistfalse
+    \fi
     \endlist\frenchspacing}
 \let\thu@appendix\appendix
 \renewenvironment{appendix}{%

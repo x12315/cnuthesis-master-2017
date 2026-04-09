@@ -29,6 +29,7 @@ dist
 dtx-style.sty
 thuthesis.pdf
 main.pdf
+*.pdf
 
 *.xdv
 *.synctex(busy)
