@@ -221,8 +221,12 @@
   \renewcommand{\footrulewidth}{0pt}}
 \fancypagestyle{thu@plain}{%
   \fancyhead{}
+  % 奇数页：居中、宋体、五号、固定文本
+  \fancyhead[CO]{\wuhao\songti 首都师范大学本科毕业设计论文}
+  % 偶数页：居中、宋体、五号、论文中文标题（可通过 ctitle@header 自定义）
+  \fancyhead[CE]{\wuhao\songti\ifx\thu@ctitle@header\empty\thu@ctitle\else\thu@ctitle@header\fi}
   \fancyfoot[C]{\xiaowu\thepage}
-  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\headrulewidth}{0.4pt}
   \renewcommand{\footrulewidth}{0pt}}
 \fancypagestyle{thu@headings}{%
   \fancyhead{}
@@ -419,6 +423,7 @@
 \thu@def@term{secretlevel}
 \thu@def@term{secretyear}
 \thu@def@term{ctitle}
+\thu@def@term{ctitle@header}
 \thu@def@term{runninghead}
 \thu@def@term{etitle}
 \thu@def@term{cauthor}
@@ -626,7 +631,8 @@
      \begin{center}
        {\ifthu@bachelor\vskip-2.2cm\hskip-1.2cm\xiaosi\else%
          \vskip3.3cm\xiaosan\fi%
-         \cusong\thu@cdate
+         % 注释掉重复的日期，已在表格"完成日期"行中显示
+         % \cusong\thu@cdate
          }
      \end{center}
     \end{center}} % end of titlepage

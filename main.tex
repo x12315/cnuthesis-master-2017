@@ -1,4 +1,4 @@
-\documentclass[type=bachelor,pifootnote]{thuthesis}
+\documentclass[type=bachelor,pifootnote,doublepageprint]{thuthesis}
 % 这里如果写成bachelor会有一些问题 能跑就别动
 
 % 选项：
@@ -38,7 +38,7 @@
 \input{data/cover}
 %\makecover
 % 如果使用授权说明扫描页，将可选参数中指定为扫描得到的 PDF 文件名，例如：
-\makecover[scan-auth-statement.pdf]
+\makecover[originality_commitment.pdf]
 
 %% 目录
 \tableofcontents
@@ -56,8 +56,14 @@
 \mainmatter
 % \include{data/chap01_eg}
 % \include{data/chap02_eg}
-\include{data/chap_01}
-\include{data/chap_02}
+
+\include{data/chap_01} %引言
+\include{data/chap_02} %传统GNSS/INS结合算法
+\include{data/chap_03} %MCKF
+\include{data/chap_04} %实验代码设计
+\include{data/chap_05} %实验结果
+\include{data/chap_06} %总结
+
 %%% 其它部分
 \backmatter
 

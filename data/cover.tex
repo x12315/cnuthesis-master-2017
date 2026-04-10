@@ -9,11 +9,12 @@
   % 无线电导航 导航技术
   %secretlevel={密级},
   secretyear={公开},
-  uid={10028},
+  % uid={10028},
   id={1221002084}, % 学号
   %当论文标题无需手动换行时，仅设置ctitle即可。否则需要分别设置。
-  ctitle={中文题目\\副标题},%用于论文封面显示的论文题目，允许手动换行。
-  runninghead={中文题目},%设置页眉中的论文题目，尽量不要手动换行
+  ctitle={融合自适应最大相关熵滤波的GNSS/INS松耦合导航方法研究\\Research on GNSS/INS Tightly Coupled Navigation Method Integrating Adaptive Maximum Correntropy Filter},%用于论文封面显示的论文题目，允许手动换行。  
+    ctitle@header={融合自适应最大相关熵滤波的GNSS/INS松耦合导航方法研究},%页眉中显示的纯中文标题，
+    runninghead={中文题目},%设置页眉中的论文题目，尽量不要手动换行
   cauthor={秦良宇},
   cdepartment={信息工程学院},
   csupervisor={付小雁},
@@ -23,52 +24,32 @@
   % cdate={2017年4月1日},
 }
 
+
+
 % 定义中英文摘要和关键字
 \begin{cabstract}
-  论文的摘要是对论文研究内容和成果的高度概括。摘要应对论文所研究的问题及其研究目
-  的进行描述，对研究方法和过程进行简单介绍，对研究成果和所得结论进行概括。摘要应
-  具有独立性和自明性，其内容应包含与论文全文同等量的主要信息。使读者即使不阅读全
-  文，通过摘要就能了解论文的总体内容和主要成果。
 
-  论文摘要的书写应力求精确、简明。切忌写成对论文书写内容进行提要的形式，尤其要避
-  免“第 1 章……；第 2 章……；……”这种或类似的陈述方式。
+  
+  高精度定位与导航服务在智能驾驶、航空航海、测绘监测及无人系统等领域具有重要应用价值。全球导航卫星系统（GNSS）在开阔环境中能提供稳定定位，但在城市峡谷、隧道等复杂场景下易受多径效应、非视距传播及信号衰减等因素影响，定位精度与可靠性显著下降。惯性导航系统（INS）具有短时精度高、抗干扰能力强的优点，但误差随时间累积，长期导航性能较差。因此，GNSS/INS组合导航成为提升系统整体性能的有效路径。
+  \note{感觉背景描述有点长了 如果是领域已知信息就不要再说的话}
 
-  本文介绍清华大学论文模板 \thuthesis{} 的使用方法。本模板符合学校的本科、硕士、
-  博士论文格式要求。
+  本文针对复杂环境下观测噪声呈现非高斯、重尾分布的问题，提出了一种融合最大相关熵卡尔曼滤波（MCKF）与紧耦合（TC）模型的GNSS/INS组合导航方法。MCKF利用相关熵在核空间中定义局部相似性度量，能够有效利用误差的高阶统计信息，增强对异常观测值的鲁棒性。在此基础上，进一步设计了自适应核带宽策略，基于新息协方差匹配动态调整状态与观测核带宽，提升滤波器在时变噪声环境下的自适应能力。
 
-  本文的创新点主要有：
-  \begin{itemize}
-    \item 用例子来解释模板的使用方法；
-    \item 用废话来填充无关紧要的部分；
-    \item 一边学习摸索一边编写新代码。
-  \end{itemize}
+  论文详细推导了紧耦合误差状态模型与MCKF迭代更新机制，并实现了基于Python的模块化算法库，支持事件驱动的双速率融合调度与可复现实验流程。仿真与实测数据验证表明，所提方法在卫星信号受限或观测异常条件下，相较于传统卡尔曼滤波具有更高的状态估计精度与系统鲁棒性。
 
-  关键词是为了文献标引工作、用以表示全文主要内容信息的单词或术语。关键词不超过 5
-  个，每个关键词中间用分号分隔。（模板作者注：关键词分隔符不用考虑，模板会自动处
-  理。英文关键词同理。）
+
 \end{cabstract}
 
 % 如果习惯关键字跟在摘要文字后面，可以用直接命令来设置，如下：
-\ckeywords{\TeX, \LaTeX, CJK, 模板, 论文}
+\ckeywords{GNSS/INS组合导航；紧耦合；最大相关熵卡尔曼滤波；自适应核带宽；非高斯噪声}
 
 \begin{eabstract}
-   An abstract of a dissertation is a summary and extraction of research work
-   and contributions. Included in an abstract should be description of research
-   topic and research objective, brief introduction to methodology and research
-   process, and summarization of conclusion and contributions of the
-   research. An abstract should be characterized by independence and clarity and
-   carry identical information with the dissertation. It should be such that the
-   general idea and major contributions of the dissertation are conveyed without
-   reading the dissertation.
+  High-precision positioning and navigation services are essential in applications such as autonomous driving, aviation, marine navigation, surveying, and unmanned systems. The Global Navigation Satellite System (GNSS) provides stable positioning in open-sky environments, but its accuracy and reliability degrade significantly in complex scenarios such as urban canyons and tunnels due to multipath effects, non-line-of-sight (NLOS) reception, and signal attenuation. The Inertial Navigation System (INS) offers high short-term accuracy and strong anti-interference capability, yet its errors accumulate over time, leading to poor long-term performance. Consequently, GNSS/INS integrated navigation has become an effective approach to enhance overall system performance.
 
-   An abstract should be concise and to the point. It is a misunderstanding to
-   make an abstract an outline of the dissertation and words ``the first
-   chapter'', ``the second chapter'' and the like should be avoided in the
-   abstract.
+  Aiming at the problem of non-Gaussian, heavy-tailed observation noise in complex environments, this paper proposes a GNSS/INS tightly coupled navigation method that integrates the Maximum Correntropy Kalman Filter (MCKF). By leveraging the local similarity measure defined by correntropy in kernel space, MCKF exploits higher-order statistical information of errors and improves robustness against abnormal observations. On this basis, an adaptive kernel bandwidth strategy is further designed, which dynamically adjusts the state and observation kernel bandwidths using innovation covariance matching, thereby enhancing the filter's adaptability to time-varying noise environments.
 
-   Key words are terms used in a dissertation for indexing, reflecting core
-   information of the dissertation. An abstract may contain a maximum of 5 key
-   words, with semi-colons used in between to separate one another.
+  The paper derives in detail the tightly coupled error-state model and the iterative update mechanism of MCKF. A modular Python-based algorithm library is implemented, supporting event-driven dual-rate fusion scheduling and reproducible experimental workflows. Simulation and real-world data validation demonstrate that the proposed method achieves significantly higher state estimation accuracy and system robustness under satellite-signal-constrained or observation-anomaly conditions compared to conventional Kalman filters.
+
 \end{eabstract}
 
-\ekeywords{\TeX, \LaTeX, CJK, template, thesis}
+\ekeywords{GNSS/INS integrated navigation; tightly coupled; Maximum Correntropy Kalman Filter; adaptive kernel bandwidth; non-Gaussian noise}

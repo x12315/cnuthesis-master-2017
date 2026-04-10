@@ -1,7 +1,8 @@
 % !TeX root = ../main.tex
 
-\chapter{误差模型与传统观测算法}
+\chapter{GNSS/INS误差模型与传统观测算法}
 
+\note{改一下层次吧 现在组织层次有点乱}
 \section{误差模型的系统动态模型}
 /Users/montana/Downloads/s10291-017-0612-y.pdf /Users/montana/Downloads/sensors-17-02462.pdf
 (记得补充引用啊)
@@ -142,7 +143,7 @@ $\boldsymbol{\omega}_{ib}^b$ 和 $\boldsymbol{f}^b$ 分别表示陀螺仪与加�
 
 对于 GNSS/INS 松组合（LC）集成，利用 GNSS 接收机输出的位置和速度（即 \(\bm{r}_k^{\text{GNSS}}\) 和 \(\bm{v}_k^{\text{GNSS}}\)）作为参考，将其与 INS 输出的位置和速度（即 \(\bm{r}_k^{\text{IMU}}\) 和 \(\bm{v}_k^{\text{IMU}}\)）的差值输入到卡尔曼滤波器中，用以估计导航误差和惯性传感器零偏。在时刻 \(k\)，卡尔曼滤波的量测向量 \(\delta \bm{z}_k^{\text{LC}}\) 可写为
 
-\[
+\begin{equation}
     \delta \bm{z}_k^{\text{LC}} =
     \begin{pmatrix}
         \delta \bm{z}_r \\[2pt]
@@ -153,17 +154,18 @@ $\boldsymbol{\omega}_{ib}^b$ 和 $\boldsymbol{f}^b$ 分别表示陀螺仪与加�
         \bm{r}_k^{\text{IMU}} - \bm{r}_k^{\text{GNSS}} \\[2pt]
         \bm{v}_k^{\text{IMU}} - \bm{v}_k^{\text{GNSS}}
     \end{pmatrix}.
-\]
+    \label{eq:lc_meas_vector}
+\end{equation}
 
 GNSS 天线与 IMU 固定在不同位置，形成从 IMU 中心指向 GNSS 相位中心的杆臂向量 \(\bm{e}^b\)，如图 2 所示。经过杆臂效应改正后，量测模型可推导为~[23]
 
-\[
+\begin{equation}
     \delta \bm{z}_k^{\text{LC}} = \bm{H}_k^{\text{LC}} \cdot \delta \bm{x}_k + \bm{e}_{\text{LC}},
-\]
+\end{equation}
 
 其中 \(\bm{e}_{\text{LC}} = (\bm{e}_r, \bm{e}_v)^T\) 为 GNSS 位置和速度噪声，其协方差矩阵满足 \(E[(\bm{e}_r^T, \bm{e}_{vi}^T)^T \cdot (\bm{e}_r^T, \bm{e}_{vk}^T)] = \bm{R}_k \delta_{ik}\)，\(\delta_{ik}\) 为克罗内克函数；\(\delta \bm{z}_k^{\text{LC}}\) 为量测向量，\(\bm{H}_k^{\text{LC}}\) 为设计矩阵。具体地，
 
-\[
+\begin{equation}
     \delta \bm{z}_k^{\text{LC}} =
     \begin{pmatrix}
         \delta z_r \\[2pt]
@@ -174,16 +176,15 @@ GNSS 天线与 IMU 固定在不同位置，形成从 IMU 中心指向 GNSS 相�
         \bm{r}_1^{\text{IMU}} - \bm{r}_1^{\text{GNSS}} + \bm{C}_n^b \bm{e}^b \\[4pt]
         \bm{v}_1^{\text{IMU}} - \bm{v}_1^{\text{GNSS}} - (\boldsymbol{\omega}_n^i \times) \bm{C}_n^b \mathbf{e}^b - \bm{C}_n^b (\mathbf{e}^b \times) \boldsymbol{\omega}_{ib}^b
     \end{pmatrix},
-\]
+\end{equation}
 
-\[
+\begin{equation}
     \bm{H}_k^{\text{LC}} =
     \begin{pmatrix}
         \bm{I}_{3 \times 3} & \bm{0}_{3 \times 3} & \bigl(\bm{C}_{b}^n \bm{\ell}^b\bigr)\times & \bm{0}_{3 \times 3} & \bm{0}_{3 \times 3} \\
         \bm{0}_{3 \times 3} & \bm{I}_{3 \times 3} & - \left[\left(\bm{\omega}_{in}^n\times\right)\left(\bm{C}_b^n\ell^b\right)+\bm{C}_b^n\left(\ell^b\times\bm{\omega}_{ib}^b\right)\times \right] & -\bm{C}_b^n\left(\ell^b\times\right) & \bm{0}_{3 \times 3}
     \end{pmatrix}.
-\]
-
+\end{equation}
 
 
 \subsection{卡尔曼滤波流程}
@@ -330,6 +331,7 @@ TC模型使用经误差校正后的伪距 $\hat{\rho}_{\text{GNSS}}^{(n)}$ 和�
 \]
 其中 $\bm{C}_e^n$ 为地球坐标系至导航坐标系的转换矩阵，实际实现中常将位置误差 $\delta \bm{r}^n$ 直接投影至视线方向，故上述矩阵中的 $-\bm{u}^{(n)} \bm{C}_e^n$ 可简化为 $-\bm{u}^{(n)}$ 乘以适当的方向余弦。详细推导可参考文献\cite{groves2008principles, angrisano2010gnss}。
 
+
 % \subsubsection{与松耦合的主要优势对比}
 
 % 相比于LC架构，TC模型具有以下关键优势，尤其适用于城市峡谷等GNSS信号苛刻环境：
@@ -346,6 +348,15 @@ TC模型使用经误差校正后的伪距 $\hat{\rho}_{\text{GNSS}}^{(n)}$ 和�
 
 可以见的，相比于LC模型，TC模型有着诸多方面的优势，其相较于LC模型，（\note{lc模型也不一定就直接用了没滤波的GNSS生值啊}多考虑了大气层折射、发送接收端时钟延迟和卫星角度等因素，并利用滤波器等特性以马尔可夫过程对钟漂进行建模，以指数模型（DOP）对观测可信度进行建模。且其结合误差模型等特性充分利用了数据，使得在卫星数量不足时系统也可以维持运行，不像LC模型直接丢失输出\note{润色一下}
 % TC的量测残差（新息）具有明确的物理意义（伪距/多普勒残差），便于基于新息统计检验（如卡方检验）构造鲁棒因子，从而抵抗多路径或干扰引起的GNSS异常值。而LC中位置/速度残差受到DOP和时钟误差的耦合影响，异常检测更为困难。
+
+\note{这图现在是pdf形式插进去的 再改改吧 有点丑}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.88\textwidth]{tc.pdf}
+    \caption{GNSS/INS 紧耦合导航示意图}
+    \label{fig:lc_schematic}
+\end{figure}
 
 正是由于上述优势，本文后续章节将在TC模型基础上，进一步引入MCKF，以全面提升城市环境下MEMS-GNSS/INS组合导航的精度与可靠性。
 

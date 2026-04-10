@@ -1,0 +1,107 @@
+\chapter{代码设计}
+
+\section{算法流程}
+\note{这里加全流程伪装代码}
+\note{这个伪代码是AI没能体现INS机械组织 和 一些时间戳匹配的相关算法逻辑
+需要修改}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\SetKwInOut{Input}{输入}
+\SetKwInOut{Output}{输出}
+\Input{初始误差状态 $\delta\hat{\mathbf{x}}_0$（含SINS 15维 + GNSS时钟2维），初始协方差 $\mathbf{P}_0$，过程噪声协方差 $\mathbf{Q}=\operatorname{diag}(\mathbf{Q}_{\text{SINS}},\mathbf{Q}_{\text{GNSS}})$，观测噪声协方差 $\mathbf{R}$（初始），滑动窗口长度 $N$，最大迭代次数 $M$，收敛阈值 $\varepsilon$}
+\Output{每个时刻校正后的导航状态（位置、速度、姿态、时钟参数）}
+\BlankLine
+
+\For{每个时刻 $k = 1,2,\ldots$}{
+    % 预测
+    计算状态转移矩阵 $\bm{\Phi} = \operatorname{blkdiag}(\bm{\Phi}_{\text{SINS}}, \bm{\Phi}_{\text{GNSS}})$\;
+    $\delta\hat{\mathbf{x}}_{k|k-1} = \bm{\Phi} \cdot \delta\hat{\mathbf{x}}_{k-1|k-1}$\;
+    $\mathbf{P}_{k|k-1} = \bm{\Phi} \mathbf{P}_{k-1|k-1} \bm{\Phi}^T + \mathbf{G} \mathbf{Q} \mathbf{G}^T$\;
+    
+    % 自适应核带宽
+    计算新息协方差估计 $\hat{\mathbf{P}}_s$ 和 $\hat{\mathbf{R}}_k$\;
+    $\sigma_{k,y} = \sqrt{\operatorname{tr}(\hat{\mathbf{R}}_k)}$\;
+    $\sigma_{k,x} = \sqrt{\operatorname{tr}(\mathbf{P}_{k|k-1})}$\;
+    
+    % TC观测：计算伪距/多普勒残差及观测矩阵
+    对每颗可见卫星 $n=1,\ldots,m$ 执行伪距和多普勒残差计算\;
+    构造残差向量 $\mathbf{z}_k$（长度 $2m$）和观测矩阵 $\mathbf{H}_k$（$2m \times 17$）\;
+    
+    % MCKF固定点迭代
+    $\delta\hat{\mathbf{x}}^{(0)} = \delta\hat{\mathbf{x}}_{k|k-1}$\;
+    计算 $\mathbf{B}_P = \operatorname{chol}(\mathbf{P}_{k|k-1})$, $\mathbf{B}_R = \operatorname{chol}(\mathbf{R}_k)$\;
+    $t = 1$\;
+    \While{$t \le M$}{
+        计算增广误差向量 $\mathbf{E}$ 及高斯核权重矩阵 $\mathbf{C}_x, \mathbf{C}_y$\;
+        更新等效协方差 $\tilde{\mathbf{P}} = \mathbf{B}_P \mathbf{C}_x^{-1} \mathbf{B}_P^T$, $\tilde{\mathbf{R}} = \mathbf{B}_R \mathbf{C}_y^{-1} \mathbf{B}_R^T$\;
+        计算卡尔曼增益 $\mathbf{K} = \tilde{\mathbf{P}} \mathbf{H}_k^T (\mathbf{H}_k \tilde{\mathbf{P}} \mathbf{H}_k^T + \tilde{\mathbf{R}})^{-1}$\;
+        $\delta\hat{\mathbf{x}}^{(t)} = \delta\hat{\mathbf{x}}_{k|k-1} + \mathbf{K} (\mathbf{z}_k - \mathbf{H}_k \delta\hat{\mathbf{x}}^{(t-1)})$\;
+        \eIf{ $\|\delta\hat{\mathbf{x}}^{(t)} - \delta\hat{\mathbf{x}}^{(t-1)}\| / \|\delta\hat{\mathbf{x}}^{(t-1)}\| < \varepsilon$ }{
+            \textbf{break}\;
+        }{
+            $t = t+1$\;
+        }
+    }
+    $\delta\hat{\mathbf{x}}_{k|k} = \delta\hat{\mathbf{x}}^{(t_{\text{end}})}$\;
+    $\mathbf{P}_{k|k} = (\mathbf{I} - \mathbf{K} \mathbf{H}_k) \mathbf{P}_{k|k-1}$\;
+    
+    % 反馈校正（ESKF）
+    利用 $\delta\hat{\mathbf{x}}_{k|k}$ 中的 $\delta\mathbf{r}^n,\delta\mathbf{v}^n,\bm{\phi},\bm{\epsilon}^b,\bm{\nabla}^b$ 修正SINS机械编排结果\;
+    利用 $\delta(c\delta t_{\text{offset}}), \delta(c\delta t_{\text{drift}})$ 修正接收机时钟\;
+    将误差状态清零：$\delta\hat{\mathbf{x}}_{k|k} = \mathbf{0}$\;
+}
+\caption{基于紧耦合模型的自适应最大相关熵卡尔曼滤波（TC-Adaptive MCKF）}
+\label{alg:TC_Adaptive_MCKF}
+\end{algorithm}
+
+
+\section{代码项目实现}
+
+(为了对算法进行实验 本文介绍一个自行开发的算法库 现在已经在github上开源 请参见链接xxxxxxx)
+
+\subsection{外部设施选型与实现边界}
+
+\note{补充对仿真数据来源 关键传感器信息的说明}
+本项目采用“核心算法自研、基础设施复用”的实现策略。数值计算层面复用 NumPy/SciPy/Pandas；惯导基础计算复用 pyins 的增量构造、姿态变换与地球参数函数；仿真层复用 gnss-ins-sim 生成可控轨迹与传感器观测；滤波器内核由独立的 filter\_box\_py 提供。该分工使算法研究聚焦于误差状态建模与融合逻辑，而非重复实现通用工具链。
+
+在工程边界上，项目未将外部库整体嵌入，而是采用“按需接入”的方式：将 IMU 原始数据转换为增量后进入自有积分与误差传播链路，再通过统一接口与 EKF/IMM 内核对接。这种边界划分保证了外部能力可替换，同时保留了核心状态定义与更新节奏的可控性。
+
+\subsection{中强度接口设计}
+
+本项目接口策略可概括为“中强度接口”：接口提供明确的数学语义与调用约定，但避免把应用约束硬编码到滤波器内核。其实现特征包括：
+
+\begin{enumerate}
+\item 误差状态采用 15 维统一向量并按语义分块（位置、速度、姿态、陀螺偏置、加计偏置），既利于线性化推导，也便于工程访问；
+\item 过程模型与观测模型均采用函数注入，雅可比既可外部提供，也可由数值差分自动生成，降低模型替换成本；
+\item EKF/IMM 内核保持“纯数学更新”，应用层特化（如业务限幅、场景规则）不下沉到滤波器基础类。
+\end{enumerate}
+
+这种设计在论文实现阶段的优势是：既有足够的结构化约束保证正确性，又保留快速试验所需的迭代弹性。
+
+\subsection{更新频率与融合调度}
+
+项目采用事件驱动的双速率更新机制：IMU 高频到达时执行预测步，GNSS 与 IMU 时间对齐时执行校正步。对应关系为：
+
+\[
+\text{IMU only} \Rightarrow \mathbf{x}_{k|k-1}=f(\mathbf{x}_{k-1|k-1},\mathbf{u}_k),
+\]
+
+\[
+\text{IMU + GNSS matched} \Rightarrow
+\mathbf{x}_{k|k}=\mathbf{x}_{k|k-1}+\mathbf{K}_k\left(\mathbf{z}_k-h(\mathbf{x}_{k|k-1})\right).
+\]
+
+该机制将“连续传播”与“离散观测修正”统一到同一主循环中，避免了低频观测缺失时的状态停滞，也避免了观测未到达时的伪更新。工程实现中通过时间戳容差判定 GNSS 是否参与当前时刻更新，保证了仿真与实测迁移时的一致调度逻辑。
+
+\subsection{误差状态模型与数值实现}
+
+误差传播采用 15 维线性化连续模型，状态转移矩阵由连续系统矩阵离散化得到。项目在离散化环节采用矩阵指数形式而非一阶近似，提高了短周期积分下的数值一致性。陀螺与加计偏置项采用一阶马尔可夫过程建模，时间常数参数化配置，可覆盖不同等级 IMU 的漂移特性。
+
+\subsection{可复现实验的工程组织}
+
+项目将“算法对象接口”与“仿真数据通道”进行标准化对接，使同一仿真任务下可替换不同算法并输出统一格式结果。这种组织方式直接支持论文所需的可复现实验流程：同一运动定义、同一噪声模型、同一评估口径，仅替换算法实现即可完成横向比较。
+
+\subsection{小结}
+
+本项目的核心价值不在于堆叠更多算法模块，而在于形成了可演化的实现框架：通过外部设施复用降低重复劳动，通过中强度接口保持迭代效率，通过事件驱动更新机制保证融合正确性，并以参数化误差模型与稳定离散化方法支撑算法可解释性与可复现性。

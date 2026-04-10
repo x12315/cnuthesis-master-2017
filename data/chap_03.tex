@@ -1,0 +1,195 @@
+\chapter{自适应MCKF及其融合算法}
+\note{mckf这篇文还包含一个iekf减小ekf的线性程度 是否使用？}
+
+\note{woc好消息 好像tc是个线性模型吧 至少他在上面提到了观测函数可以近似线性成H矩阵 也就是说不用上ekf了好耶 更不用iekf了}
+
+\note{参考文献中对导航噪声的处理方法：
+    第一层（MCKF）：利用最大相关熵准则（MCC）通过核函数对预测残差进行非线性加权，在每次迭代中动态构造等效协方差矩阵，从而对非高斯噪声、有色噪声、中等异常值具有天生的鲁棒性。
+    第二层（两个因子）：在 MCKF 的迭代框架内，进一步引入方差膨胀因子（对抗极端测量异常）和分类自适应因子（对抗动态模型异常），对等效协方差矩阵进行二次缩放，使滤波器能在突发、巨大的异常（如 NLOS 跳变、急转弯）下仍保持稳定。
+}
+
+\subsection{最大相关熵卡尔曼滤波（MCKF）}
+
+经典卡尔曼滤波在最小均方误差（MMSE）准则下对线性高斯系统是最优的。但在实际导航应用中，尽管已经通过建模方法尽可能避免有色噪声对滤波的干扰，但观测噪声依然常呈现重尾、非高斯分布，此时 MMSE 估计性能严重下降。为此，Chen等人将最大相关熵准则（MCC）引入卡尔曼滤波，提出了最大相关熵卡尔曼滤波（MCKF）。
+
+\subsubsection{相关熵与最大相关熵准则}
+
+对于两个随机变量 \(X,Y\)，其相关熵定义为
+
+\begin{equation}
+    V(X,Y)=\mathbb{E}\bigl[\kappa(X-Y)\bigr],
+\end{equation}
+
+其中 \(\kappa(\cdot)\) 是满足 Mercer 条件的核函数，通常采用高斯核：
+
+\begin{equation}
+    \kappa(u)=G_{\sigma}(u)=\exp\left(-\frac{u^2}{2\sigma^2}\right),\quad \sigma>0.
+\end{equation}
+
+将高斯核进行泰勒展开可得：
+
+\begin{equation}
+    V(X,Y)=\sum_{n=0}^{\infty}\frac{(-1)^n}{2^n\sigma^2 n!}\mathbb{E}\bigl[(X-Y)^{2n}\bigr].
+\end{equation}
+
+可见相关熵包含了误差的各阶偶次矩信息。核带宽 \(\sigma\) 控制着高阶矩的贡献：\(\sigma\) 越小，对异常值（产生大误差）的惩罚越重；\(\sigma\to\infty\) 时，相关熵退化为二阶矩，即 MMSE 准则。
+
+在实际应用中，联合分布未知，常用样本平均近似相关熵：
+
+\begin{equation}
+    \hat V(X,Y)=\frac{1}{N}\sum_{i=1}^{N}\exp\left(-\frac{(x_i-y_i)^2}{2\sigma^2}\right).
+\end{equation}
+
+最大相关熵准则（MCC）要求最大化上述样本相关熵，等价于最小化一个非线性的代价函数。
+
+\subsubsection{MCKF 的固定点迭代推导}
+
+考虑非线性离散系统：
+
+\begin{equation}
+    \begin{aligned}
+        X_k & = f(X_{k-1}) + \omega_{k-1}, \\
+        y_k & = h(X_k) + e_k,
+    \end{aligned}
+\end{equation}
+
+其中 \(\omega_k\) 和 \(e_k\) 为相互独立的过程噪声和观测噪声，协方差矩阵分别为 \(Q_k\) 和 \(R_k\)。
+
+设已知预测状态 \(\hat{X}_{k|k-1}\) 及其协方差 \(P_{k|k-1}\)，以及观测 \(y_k\)。定义增广误差向量：
+
+\begin{equation}
+    v_k = \begin{bmatrix} \hat{X}_{k|k-1} - X_k \\ y_k - h(X_k) \end{bmatrix}.
+\end{equation}
+
+该向量的协方差矩阵为 \(\operatorname{diag}(P_{k|k-1}, R_k)\)。对其进行 Cholesky 分解：
+\begin{equation}
+    B_k = \operatorname{chol}\left(\begin{bmatrix} P_{k|k-1} & 0 \\ 0 & R_k \end{bmatrix}\right),\quad B_k B_k^{\mathrm{T}} = \begin{bmatrix} P_{k|k-1} & 0 \\ 0 & R_k \end{bmatrix}.
+\end{equation}
+用 \(B_k^{-1}\) 左乘 \(v_k\)，得到白噪声化的误差方程：
+\[
+    D_k = W_k X_k + E_k,
+\]
+其中 \(D_k\) 和 \(W_k\) 由已知量构成，\(E_k\) 是零均值单位协方差的白噪声。
+
+MCC 估计的目标是最大化 \(D_k\) 与 \(W_k X_k\) 之间的相关熵：
+
+\begin{equation}
+    J_{\mathrm{MCC}}(X_k) = \frac{1}{m+l}\sum_{i=1}^{m+l} G_{\sigma}\bigl((D_k - W_k X_k)_i\bigr).
+\end{equation}
+
+令 \(\partial J_{\mathrm{MCC}} / \partial X_k = 0\)，经过推导可得固定点迭代方程：
+
+\begin{equation}
+    \hat{X}_{k|k}^{(n)} = \hat{X}_{k|k-1} + K_k^{(n-1)}\bigl(y_k - h(\hat{X}_{k|k-1})\bigr),
+\end{equation}
+
+其中迭代更新的卡尔曼增益为：
+
+\begin{equation}
+    K_k^{(n-1)} = \tilde{P}_{k|k-1}^{(n-1)} H_k^{\mathrm{T}} \bigl( H_k \tilde{P}_{k|k-1}^{(n-1)} H_k^{\mathrm{T}} + \tilde{R}_k^{(n-1)} \bigr)^{-1}.
+\end{equation}
+
+这里 \(H_k\) 是观测矩阵的雅可比，而等效协方差矩阵为：
+\begin{equation}
+    \begin{aligned}
+        \tilde{P}_{k|k-1}^{(n-1)} & = B_{k,P} \bigl( C_{k,x}^{(n-1)} \bigr)^{-1} B_{k,P}^{\mathrm{T}}, \\
+        \tilde{R}_k^{(n-1)}       & = B_{k,R} \bigl( C_{k,y}^{(n-1)} \bigr)^{-1} B_{k,R}^{\mathrm{T}}.
+    \end{aligned}
+\end{equation}
+其中 \(B_{k,P}\) 和 \(B_{k,R}\) 分别是 \(P_{k|k-1}\) 和 \(R_k\) 的 Cholesky 因子，\(C_{k,x}\) 和 \(C_{k,y}\) 是元素为高斯核值的对角矩阵：
+
+\begin{equation}
+    \begin{aligned}
+        C_{k,x}^{(n-1)} & = \operatorname{diag}\Bigl(G_{\sigma}\bigl(E_{k,1}^{(n-1)}\bigr), \dots, G_{\sigma}\bigl(E_{k,l}^{(n-1)}\bigr)\Bigr),     \\
+        C_{k,y}^{(n-1)} & = \operatorname{diag}\Bigl(G_{\sigma}\bigl(E_{k,l+1}^{(n-1)}\bigr), \dots, G_{\sigma}\bigl(E_{k,l+m}^{(n-1)}\bigr)\Bigr),
+    \end{aligned}
+\end{equation}
+而 \(E_k^{(n-1)} = D_k - W_k \hat{X}_{k|k}^{(n-1)}\)。
+
+\subsubsection{算法流程与核带宽作用}
+
+MCKF 的具体执行步骤如下：
+\begin{enumerate}
+    \item \textbf{预测}：计算 \(\hat{X}_{k|k-1}\) 和 \(P_{k|k-1}\)。
+    \item \textbf{初始化}：设置迭代初值 \(\hat{X}_{k|k}^{(0)} = \hat{X}_{k|k-1}\)，并预计算 \(B_{k,P}, B_{k,R}\)。
+    \item \textbf{固定点迭代}（\(n=1,2,\dots\)）：
+          \begin{itemize}
+              \item 根据当前估计 \(\hat{X}_{k|k}^{(n-1)}\) 计算残差向量 \(E_k^{(n-1)}\)；
+              \item 计算对角矩阵 \(C_{k,x}^{(n-1)}\) 和 \(C_{k,y}^{(n-1)}\)；
+              \item 更新等效协方差 \(\tilde{P}_{k|k-1}^{(n-1)}\) 和 \(\tilde{R}_k^{(n-1)}\)；
+              \item 计算卡尔曼增益 \(K_k^{(n-1)}\) 并更新状态 \(\hat{X}_{k|k}^{(n)}\)；
+              \item 检查收敛条件 \(\|\hat{X}_{k|k}^{(n)} - \hat{X}_{k|k}^{(n-1)}\| / \|\hat{X}_{k|k}^{(n-1)}\| < \varepsilon\)，若满足则退出迭代。
+          \end{itemize}
+    \item \textbf{后验协方差更新}：使用最终迭代结果计算 \(P_{k|k}\)。
+\end{enumerate}
+
+核带宽 \(\sigma\) 在 MCKF 中起着关键作用。较小的 \(\sigma\) 使高斯核迅速衰减，对残差较大的观测施加极低权重，从而有效抑制异常值；但 \(\sigma\) 过小可能导致算法发散或收敛缓慢。较大的 \(\sigma\) 使算法趋近于标准卡尔曼滤波。传统 MCKF 通常依赖经验或实验选取固定 \(\sigma\)，这限制了其在时变噪声环境下的适应性。
+
+% \subsubsection{MCKF 的局限性}
+
+% 尽管 MCKF 对非高斯噪声和中等异常值表现出优于标准卡尔曼滤波的鲁棒性，但它在以下方面仍存在不足：
+% \begin{itemize}
+%     \item 核带宽 \(\sigma\) 固定，难以适应复杂动态环境中噪声特性的变化；
+%     \item 对于极端异常值（如城市峡谷中的 NLOS 误差，可达数百米），单一的相关熵加权可能仍无法完全抑制其影响；
+%     \item 当状态预测模型本身存在较大偏差时（如车辆急转弯、高架下信号骤变），仅靠调整观测权重无法从根本上解决问题。
+% \end{itemize}
+% 这些局限性正是后续引入自适应核带宽策略以及鲁棒估计因子（如方差膨胀因子和分类自适应因子）的动机。
+
+\subsection{自适应核带宽策略}
+
+
+自适应核带宽的思想在最大相关熵滤波领域已有研究。Fakoorian 等人（2019）提出了带有自适应核大小的最大相关熵卡尔曼滤波，通过一种新颖的方法动态计算核带宽，避免了反复试验的繁琐。Kulikova（2020）进一步从 Chandrasekhar 分解的角度设计了自适应核大小选择策略，提高了计算效率。Shao 等人（2022）则将自适应多核大小引入容积卡尔曼滤波，提升了复杂噪声环境下的鲁棒性。然而，上述工作主要集中于目标跟踪仿真，对 GNSS 定位应用的直接验证有限，且未同时考虑极端异常值（如 NLOS）和动态模型偏差的影响。
+
+论文借鉴上述自适应核带宽思想，并结合 GNSS 定位的具体特点，提出了一种基于新息协方差匹配的自适应选取方法。该方法将核带宽分为状态核带宽 \(\sigma_{k,x}\) 和观测核带宽 \(\sigma_{k,y}\) 两部分，分别对应状态预测残差和观测残差的加权。
+
+\subsubsection{观测核带宽 \(\sigma_{k,y}\)}
+
+在卡尔曼滤波中，新息向量定义为
+\begin{equation}
+    \boldsymbol{s}_k = y_k - H_k \hat{X}_{k|k-1}.
+    \label{eq:adaptive_innovation}
+\end{equation}
+在理想高斯条件下，新息服从零均值分布，其理论协方差矩阵为
+\begin{equation}
+    P_{s_k} = H_k P_{k|k-1} H_k^{\mathrm{T}} + R_k.
+    \label{eq:adaptive_innovation_cov_theory}
+\end{equation}
+然而实际中噪声统计未知，可利用滑动窗口内的新息样本估计实际协方差：
+\begin{equation}
+    \hat{P}_{s_k} = \frac{1}{N} \sum_{i=k-N+1}^{k} \boldsymbol{s}_i \boldsymbol{s}_i^{\mathrm{T}},
+    \label{eq:adaptive_innovation_cov_sample}
+\end{equation}
+其中 \(N\) 为窗口长度。由新息协方差匹配原理，可反演出当前时刻的等效观测噪声协方差：
+\begin{equation}
+    \hat{R}_k = \hat{P}_{s_k} - H_k P_{k|k-1} H_k^{\mathrm{T}}.
+    \label{eq:adaptive_r_hat}
+\end{equation}
+观测核带宽取为 \(\hat{R}_k\) 的迹的平方根：
+\begin{equation}
+    \sigma_{k,y} = \sqrt{\operatorname{tr}(\hat{R}_k)}.
+    \label{eq:adaptive_sigma_y}
+\end{equation}
+这样，当观测噪声增大或出现异常时，\(\hat{R}_k\) 自动变大，\(\sigma_{k,y}\) 随之增大，使高斯核函数对残差更“宽容”，避免过度抑制可能仍包含有用信息的测量；反之，当测量质量良好时，\(\sigma_{k,y}\) 较小，滤波器对残差更敏感，保留 MCC 的鲁棒性。
+
+\subsubsection{状态核带宽 \(\sigma_{k,x}\)}
+
+类似地，状态预测的不确定性可由预测协方差矩阵表征：
+\begin{equation}
+    P_{k|k-1} = F_k P_{k-1|k-1} F_k^{\mathrm{T}} + Q_{k-1}.
+    \label{eq:adaptive_state_pred_cov}
+\end{equation}
+状态核带宽取为 \(P_{k|k-1}\) 的迹的平方根：
+\begin{equation}
+    \sigma_{k,x} = \sqrt{\operatorname{tr}(P_{k|k-1})}.
+    \label{eq:adaptive_sigma_x}
+\end{equation}
+
+\note{这是一个关于全文的疑问 要不要把 每个公式都打一个明确的label公式标签}
+
+该值反映了当前状态预测的置信度：当模型误差较大或系统动态剧烈变化时，\(P_{k|k-1}\) 增大，\(\sigma_{k,x}\) 相应增大，降低 MCC 对状态预测误差的惩罚强度，使滤波器更倾向于相信观测；反之，当预测可靠时，\(\sigma_{k,x}\) 较小，保持对状态预测的信任。
+
+
+\subsection{算法全流程}
+\note{这里要写点什么做总结呢 感觉滤波器和模型捏在一起没什么好说的啊 我看那些论文也不会致力于追求一个一言以蔽之的图 都是分模块介绍然后默认他们合在一起就是最终产物}
+（最后 我们把上面的TC模型 套一下加上自适应带宽的MCKF 就完活了 最多再套点特殊修正什么的
+
