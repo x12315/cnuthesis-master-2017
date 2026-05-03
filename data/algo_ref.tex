@@ -410,3 +410,114 @@ $\mathbf{w}_{\nabla}$
 第三章  都是推导部分
 第四章 实验 benchmark 我看大伙都是这个结构 
 第五章 总结和展望，总结了全文的研究，指出了当前工作的不足，并对未来在GNSS/INS可能的工作和优化方向进行讨论
+
+
+% ====================
+% 从 chap_02.tex 迁移的注释备份（2026-04-26）
+% ====================
+
+% \subsection{紧耦合模型的差异}
+
+% 与松耦合（LC）架构不同，紧耦合（Tightly Coupled, TC）模型直接利用GNSS原始观测值（伪距、多普勒频移等）进行量测更新，从而克服了LC架构对卫星几何分布（DOP）的敏感性和少于四颗卫星时无法提供辅助的缺陷。本节将阐述TC模型在误差状态扩展、系统动态模型及观测模型上与LC模型的主要差异。
+
+% \subsubsection{误差状态扩展}
+
+% 在TC模型中，滤波器的误差状态向量在SINS相关状态的基础上，增加了GNSS接收机时钟误差状态，即：
+% \begin{equation}
+%     \delta \bm{x}_{\text{TC}} = \left[ \delta \bm{x}_{\text{SINS}}^T,\; \delta \bm{x}_{\text{GNSS}}^T \right]^T
+%     \label{eq:tc_state}
+% \end{equation}
+% 其中 $\delta \bm{x}_{\text{SINS}}$ 与LC中的 $\delta \bm{x}_{\text{LC}}$ 相同（参见式~(\ref{eq:error_state})），而新增的GNSS状态为：
+% \begin{equation}
+%     \delta \bm{x}_{\text{GNSS}} = \left[ \delta(c\delta t_{\text{offset}}),\; \delta(c\delta t_{\text{drift}}) \right]^T
+%     \label{eq:gnss_state}
+% \end{equation}
+% 这里 $c\delta t_{\text{offset}}$ 为接收机钟距（时钟偏移），$c\delta t_{\text{drift}}$ 为钟漂（时钟漂移率）。这两项状态是紧耦合所特有的，用于在滤波器中实时估计并补偿接收机时钟误差，从而使原始伪距和多普勒观测值能够直接参与量测更新。
+
+% \subsubsection{系统动态模型}
+
+% TC模型的系统动态方程可写为分块对角形式，体现了SINS误差与GNSS时钟误差之间不存在直接耦合：
+% \begin{equation}
+%     \delta \dot{\bm{x}}_{\text{TC}} =
+%     \begin{bmatrix}
+%         \bm{F}_{\text{SINS}} & \bm{0}_{15 \times 2} \\
+%         \bm{0}_{2 \times 15} & \bm{F}_{\text{GNSS}}
+%     \end{bmatrix}
+%     \delta \bm{x}_{\text{TC}} +
+%     \begin{bmatrix}
+%         \bm{G}_{\text{SINS}} & \bm{0}_{15 \times 2} \\
+%         \bm{0}_{2 \times 15} & \bm{G}_{\text{GNSS}}
+%     \end{bmatrix}
+%     \begin{bmatrix}
+%         \bm{w}_{\text{SINS}} \\
+%         \bm{w}_{\text{GNSS}}
+%     \end{bmatrix}
+%     \label{eq:tc_dynamics}
+% \end{equation}
+% 其中 $\bm{F}_{\text{SINS}}$、$\bm{G}_{\text{SINS}}$、$\bm{w}_{\text{SINS}}$ 与松耦合模型中的定义一致（见式~(\ref{eq:matrix_dynamic})）。对于接收机时钟误差，其动力学模型采用常见的随机游走模型：
+% \begin{equation}
+%     \begin{cases}
+%         \delta(c\dot{\delta}t_{\text{offset}}) = \delta(c\delta t_{\text{drift}}) + \eta_{\text{offset}} \\[4pt]
+%         \delta(c\dot{\delta}t_{\text{drift}}) = \eta_{\text{drift}}
+%     \end{cases}
+%     \label{eq:clock_dynamics}
+% \end{equation}
+% 因此，
+% \begin{equation}
+%     \bm{F}_{\text{GNSS}} = \begin{bmatrix} 0 & 1 \\ 0 & 0 \end{bmatrix},\quad
+%     \bm{G}_{\text{GNSS}} = \bm{I}_{2\times 2},\quad
+%     \bm{w}_{\text{GNSS}} = \begin{bmatrix} \eta_{\text{offset}} \\ \eta_{\text{drift}} \end{bmatrix}
+%     \label{eq:clock_matrices}
+% \end{equation}
+% $\eta_{\text{offset}}$ 和 $\eta_{\text{drift}}$ 分别为钟距和钟漂的驱动噪声，其谱密度可通过Allan方差分析确定。对于温补晶振（TCXO），典型参数可参考相关文献\cite{angrisano2010gnss}。离散化后，系统状态转移矩阵 $\bm{\Phi}_{k,k-1}^{\text{TC}}$ 由 $\bm{F}_{\text{SINS}}$ 和 $\bm{F}_{\text{GNSS}}$ 分别离散化后组合而成。
+
+% \subsubsection{观测模型}
+
+% TC模型使用经误差校正后的伪距 $\hat{\rho}_{\text{GNSS}}^{(n)}$ 和多普勒 $\dot{\hat{\rho}}_{\text{GNSS}}^{(n)}$ 作为量测参考，与SINS机械编排推算出的预测伪距 $\hat{\rho}_{\text{SINS}}^{(n)}$ 和预测伪距率 $\dot{\hat{\rho}}_{\text{SINS}}^{(n)}$ 作差，构成量测向量：
+% \begin{equation}
+%     \delta \bm{z}_k^{\text{TC}} =
+%     \begin{bmatrix}
+%         \delta \bm{z}_{\rho} \\[2pt]
+%         \delta \bm{z}_{\dot{\rho}}
+%     \end{bmatrix}
+%     =
+%     \begin{bmatrix}
+%         \hat{\rho}_{\text{SINS}}^{(1)} - \hat{\rho}_{\text{GNSS}}^{(1)} \\
+%         \vdots \\
+%         \hat{\rho}_{\text{SINS}}^{(m)} - \hat{\rho}_{\text{GNSS}}^{(m)} \\[4pt]
+%         \dot{\hat{\rho}}_{\text{SINS}}^{(1)} - \dot{\hat{\rho}}_{\text{GNSS}}^{(1)} \\
+%         \vdots \\
+%         \dot{\hat{\rho}}_{\text{SINS}}^{(m)} - \dot{\hat{\rho}}_{\text{GNSS}}^{(m)}
+%     \end{bmatrix}
+%     \label{eq:tc_meas_vector}
+% \end{equation}
+% 其中 $m$ 为当前可见卫星数。
+
+% 对于原始观测值，需先进行系统误差校正：
+% \begin{equation}
+%     \begin{cases}
+%         \tilde{\rho}_{\text{GNSS}}^{(n)} = \rho^{(n)} + c\delta t^{(n)} - I^{(n)} - T^{(n)} \\[4pt]
+%         \dot{\tilde{\rho}}_{\text{GNSS}}^{(n)} = \dot{\rho}^{(n)} + \delta f^{(n)}
+%     \end{cases}
+%     \label{eq:gnss_corrections}
+% \end{equation}
+% 其中 $\tilde{\rho}_{\text{GNSS}}^{(n)}$ 和 $\dot{\tilde{\rho}}_{\text{GNSS}}^{(n)}$ 分别为 GNSS 天线相位中心处校正后的伪距和多普勒测量值；$\rho^{(n)}$ 和 $\dot{\rho}^{(n)}$ 为原始伪距和多普勒测量值，$n = 1, 2, \cdots, m$；$c\delta t^{(n)}$、$\delta f^{(n)}$、$I^{(n)}$、$T^{(n)}$ 分别为卫星钟差、卫星钟漂、电离层传播误差和对流层传播误差的修正项，均可从广播星历中获得。
+
+% 预测伪距和伪距率由SINS输出的用户位置 $\bm{r}_{\text{GNSS}}$、速度 $\bm{v}_{\text{GNSS}}$ 及接收机时钟状态计算得到：
+% \begin{align}
+%     \hat{\rho}_{\text{SINS}}^{(n)} &= \left\| \bm{r}_{satellite}^{(n)} - \bm{r}_{\text{GNSS}} \right\| + c\delta t_{\text{offset}} \label{eq:pred_pseudo} \\
+%     \dot{\hat{\rho}}_{\text{SINS}}^{(n)} &= \left( \bm{v}_{satellite}^{(n)} - \bm{v}_{\text{GNSS}} \right) \cdot \bm{u}^{(n)} + c\delta t_{\text{drift}} \label{eq:pred_doppler}
+% \end{align}
+% 式中 $\bm{r}_{satellite}^{(n)}$、$\bm{v}_{satellite}^{(n)}$ 为卫星自身在发射信号时的位置和速度，可以由星历得到，$\bm{u}^{(n)} = -(\bm{r}^{(n)} - \bm{r}_{\text{GNSS}}) / \|\bm{r}^{(n)} - \bm{r}_{\text{GNSS}}\|$ 为视线方向单位向量。$\bm{r}_{\text{GNSS}}$ 和 $\bm{v}_{\text{GNSS}}$ 为使用IMU位置速度推导的GNSS位置速度，需要通过杆臂效应从IMU中心转换到GNSS天线中心：
+% \begin{align}
+%     \bm{r}_{\text{GNSS}} &= \bm{r}_{\text{SINS}} + \bm{C}_b^n \bm{\ell}^b \label{eq:lever_pos} \\
+%     \bm{v}_{\text{GNSS}} &= \bm{v}_{\text{SINS}} - (\bm{\omega}_{in}^n \times) \bm{C}_b^n \bm{\ell}^b - \bm{C}_b^n (\bm{\ell}^b \times \bm{\omega}_{ib}^b) \label{eq:lever_vel}
+% \end{align}
+% 其中 $\bm{\ell}^b$ 为IMU中心到GNSS天线中心的杆臂向量在载体坐标系下的投影。
+
+% 将式~(\ref{eq:lever_pos})、(\ref{eq:lever_vel}) 代入~(\ref{eq:pred_pseudo})、(\ref{eq:pred_doppler})，并对状态进行一阶泰勒展开，可得线性化量测方程：
+% \begin{equation}
+%     \delta \bm{z}_k^{\text{TC}} = \bm{H}_k^{\text{TC}} \cdot \delta \bm{x}_{\text{TC}} + \bm{e}_{\text{TC}}
+%     \label{eq:tc_meas_linear}
+% \end{equation}
+% 其中 $\bm{e}_{\text{TC}}$ 为伪距和多普勒观测噪声向量，其协方差矩阵 $\bm{R}_{\text{TC}}$ 通常根据卫星仰角或信噪比进行经验设定。

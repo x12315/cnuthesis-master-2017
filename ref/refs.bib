@@ -227,6 +227,8 @@
   keywords={Navigation;Estimation;Micromechanical devices;Measurement uncertainty;Manifolds;Kalman filters;Algebra;Estimation consistency;integrated navigation;Lie group;retraction operation;unscented Kalman filter (UKF)},
   doi={10.1109/TIM.2022.3159950}}
 
+
+
 @ARTICLE{9900465,
   author={Gao, Guangle and Gao, Bingbing and Gao, Shesheng and Hu, Gaoge and Zhong, Yongmin},
   journal={IEEE Transactions on Vehicular Technology}, 
@@ -299,9 +301,48 @@ abstract = {In this paper a Robust Adaptive Kalman Filter (RAKF) is introduced. 
   keywords={Global navigation satellite system;Kalman filters;Sensors;Robustness;Satellites;Noise measurement;Autonomous vehicle;global navigation satellite system (GNSS);non-holonomic constraint (NHC);strapdown inertial navigation system (SINS);tightly coupled (TC)},
   doi={10.1109/TIM.2019.2955798}}
 
+
+@Article{app13084819,
+AUTHOR = {Boguspayev, Nurlan and Akhmedov, Daulet and Raskaliyev, Almat and Kim, Alexandr and Sukhenko, Anna},
+TITLE = {A Comprehensive Review of GNSS/INS Integration Techniques for Land and Air Vehicle Applications},
+JOURNAL = {Applied Sciences},
+VOLUME = {13},
+YEAR = {2023},
+NUMBER = {8},
+ARTICLE-NUMBER = {4819},
+URL = {https://www.mdpi.com/2076-3417/13/8/4819},
+ISSN = {2076-3417},
+ABSTRACT = {Navigation systems are of interest for applications in both civilian and military vehicles. Satellite navigation systems and inertial navigation systems are the most applied in this area. They have complementary properties, which has led to a trend of integrating these systems. At present, there are several approaches to GNSS/INS integration: loosely coupled, tightly coupled and deeply coupled and many approaches to their modifications in dependence of application and arising problems with measurements, such as lack of GNSS measurements or poor quality of GNSS and INS measurements. This article presents an extensive review of the available modern approaches and their modifications for integrating INS and GNSS measurements, arranging them and highlights the main problems arising for the considered type of integration approach. The article includes a review of various integration tools based on the Kalman filter and intelligent systems, INS mechanization and features of development of an INS measurement error model that is necessary for integration, the main problems of GNSS/INS integration and a comparative description of the solutions proposed by the authors for solving these problems. The findings of this work are useful for further research in the field of inertial and satellite navigation, as well as for engineers involved in the practical implementation of integrated GNSS/INS systems.},
+DOI = {10.3390/app13084819}
+}
+
+@article{Noureldin2011,
+  author = {Noureldin, Aboelmagd and El-Shafie, Ahmed and Bayoumi, Mohamed},
+  title = {GPS/INS integration utilizing dynamic neural networks for vehicular navigation},
+  journal = {Information Fusion},
+  year = {2011},
+  volume = {12},
+  number = {1},
+  pages = {48--57},
+  doi = {10.1016/j.inffus.2010.01.003},
+  url = {https://doi.org/10.1016/j.inffus.2010.01.003}
+}
+
+@article{Ahmed2011,
+  author = {Hasan, Ahmed Mudheher and Samsudin, Khairulmizam and Ramli, Abdul Rahman},
+  title = {Optimizing of ANFIS for estimating INS error during GPS outages},
+  journal = {Journal of the Chinese Institute of Engineers},
+  year = {2011},
+  volume = {34},
+  number = {7},
+  pages = {967--982},
+  doi = {10.1080/02533839.2011.591970},
+  url = {https://doi.org/10.1080/02533839.2011.591970}
+}
+
 @BOOK{9106151,
   author={Groves, Paul},
-  booktitle={Principles of GNSS, Inertial, and Multisensor Integrated Navigation Systems},
+  title={Principles of GNSS, Inertial, and Multisensor Integrated Navigation Systems},
   year={2007},
   volume={},
   number={},
@@ -317,7 +358,9 @@ abstract = {In this paper a Robust Adaptive Kalman Filter (RAKF) is introduced. 
   number={2},
   pages={53},
   year={2018},
-  publisher={Springer}
+  publisher={Springer},
+  doi={10.1007/s10291-018-0718-x},
+  url={https://doi.org/10.1007/s10291-018-0718-x}
 }
 
 @article{hu2018new,
@@ -350,6 +393,20 @@ abstract = {In this paper a Robust Adaptive Kalman Filter (RAKF) is introduced. 
   organization={IEEE}
 }
 
+@article{CHEN201770,
+title = {Maximum correntropy Kalman filter},
+journal = {Automatica},
+volume = {76},
+pages = {70-77},
+year = {2017},
+issn = {0005-1098},
+doi = {https://doi.org/10.1016/j.automatica.2016.10.004},
+url = {https://www.sciencedirect.com/science/article/pii/S000510981630396X},
+author = {Badong Chen and Xi Liu and Haiquan Zhao and Jose C. Principe},
+keywords = {Kalman filter, Maximum correntropy criterion (MCC), Fixed-point algorithm},
+abstract = {Traditional Kalman filter (KF) is derived under the well-known minimum mean square error (MMSE) criterion, which is optimal under Gaussian assumption. However, when the signals are non-Gaussian, especially when the system is disturbed by some heavy-tailed impulsive noises, the performance of KF will deteriorate seriously. To improve the robustness of KF against impulsive noises, we propose in this work a new Kalman filter, called the maximum correntropy Kalman filter (MCKF), which adopts the robust maximum correntropy criterion (MCC) as the optimality criterion, instead of using the MMSE. Similar to the traditional KF, the state mean vector and covariance matrix propagation equations are used to give prior estimations of the state and covariance matrix in MCKF. A novel fixed-point algorithm is then used to update the posterior estimations. A sufficient condition that guarantees the convergence of the fixed-point algorithm is also given. Illustration examples are presented to demonstrate the effectiveness and robustness of the new algorithm.}
+}
+
 @article{xie2025adaptive,
   title={Adaptive robust maximum correntropy extended Kalman filter for GNSS navigation in urban areas},
   author={Xie, Ting and Dai, Zhiqiang and Li, Fang and Sun, Simei and Weng, Qizhen and Zhu, Xiangwei},
@@ -358,22 +415,12 @@ abstract = {In this paper a Robust Adaptive Kalman Filter (RAKF) is introduced. 
   number={4},
   pages={188},
   year={2025},
-  publisher={Springer}
+  publisher={Springer},
+  doi={10.1007/s10291-025-01884-y},
+  url={https://doi.org/10.1007/s10291-025-01884-y}
 }
 
-@article{HU2018755,
-title = {A new direct filtering approach to INS/GNSS integration},
-journal = {Aerospace Science and Technology},
-volume = {77},
-pages = {755-764},
-year = {2018},
-issn = {1270-9638},
-doi = {https://doi.org/10.1016/j.ast.2018.03.040},
-url = {https://www.sciencedirect.com/science/article/pii/S1270963817316498},
-author = {Gaoge Hu and Wei Wang and Yongmin Zhong and Bingbing Gao and Chengfan Gu},
-keywords = {INS/GNSS integration, Direct filtering, Kinematic model error, Suboptimal fading factor, Strong tracking unscented Kalman filter},
-abstract = {This paper presents a novel direct filtering approach to INS/GNSS (Inertial Navigation System / Global Navigation Satellite System) integration. This approach establishes a kinematic model for INS/GNSS integration by combining inertial navigation equations and IMU (Inertial Measurement Unit) error equations. Subsequently, a refined strong tracking unscented Kalman filter (RSTUKF) is developed to enhance the UKF robustness against kinematic model error. This RSTUKF adopts the strategy of assumption test to identify kinematic model error. Based on this, a suboptimal fading factor (SFF) is derived and embedded in the predicted covariance to weaken the influence of prior information on the filtering solution only in the presence of kinematic model error. In addition to correction of the UKF estimation in the presence of kinematic model error, the RSTUKF also maintains the optimal UKF estimation in the absence of kinematic model error. Simulation and experimental analysis demonstrate the performance of the proposed approach to INS/GNSS integration.}
-}
+
 
 @article{Sage1969AdaptiveFW,
   title={Adaptive filtering with unknown prior statistics},
@@ -385,7 +432,7 @@ abstract = {This paper presents a novel direct filtering approach to INS/GNSS (I
 }
 
 
-@article{ WOS:000652850700001,
+@article{WOS:000652850700001,
 Author = {Wen, Weisong and Pfeifer, Tim and Bai, Xiwei and Hsu, Li-Ta},
 Title = {Factor graph optimization for GNSS/INS integration: A comparison with
    the extended Kalman filter},
@@ -420,4 +467,85 @@ ORCID-Numbers = {BAI, Xiwei/0000-0002-9659-3570
    Pfeifer, Tim/0000-0001-8974-2278
    WEN, Weisong/0000-0003-4158-0913},
 Unique-ID = {WOS:000652850700001},
+}
+
+@article{Wang2018,
+  title={Using Allan variance to improve stochastic modeling for accurate GNSS/INS integrated navigation},
+  author={Wang, Dingjie and Dong, Yi and Li, Qingsong and Li, Zhaoyang and Wu, Jie},
+  journal={GPS Solutions},
+  volume={22},
+  number={2},
+  pages={53},
+  year={2018},
+  doi={10.1007/s10291-018-0718-x},
+  url={https://doi.org/10.1007/s10291-018-0718-x}
+}
+
+@article{Xie2025,
+  title={Adaptive robust maximum correntropy extended Kalman filter for GNSS navigation in urban areas},
+  author={Xie, Ting and Dai, Zhiqiang and Li, Fang and Sun, Simei and Weng, Qizhen and Zhu, Xiangwei},
+  journal={GPS Solutions},
+  volume={29},
+  number={4},
+  pages={188},
+  year={2025},
+  doi={10.1007/s10291-025-01884-y},
+  url={https://doi.org/10.1007/s10291-025-01884-y}
+}
+
+@article{Dissanayake2001,
+  author={Dissanayake, Gamini and Sukkarieh, Salah and Nebot, Eduardo and Durrant-Whyte, Hugh},
+  title={The aiding of a low-cost strapdown inertial measurement unit using vehicle model constraints for land vehicle applications},
+  journal={IEEE Transactions on Robotics and Automation},
+  year={2001},
+  volume={17},
+  number={5},
+  pages={731-747},
+  doi={10.1109/70.964672},
+  url={https://doi.org/10.1109/70.964672}
+}
+
+@article{Falco2012,
+  author={Falco, Gianluca and Einicke, Garry and Malos, John and Dovis, Fabio},
+  title={Performance Analysis of Constrained Loosely Coupled GPS/INS Integration Solutions},
+  journal={Sensors},
+  year={2012},
+  volume={12},
+  number={11},
+  pages={15983-16007},
+  doi={10.3390/s121115983},
+  url={https://doi.org/10.3390/s121115983}
+}
+
+
+
+@article{angrisano2010gnss,
+  author={Angrisano, Antonio and Petovello, Mark and Pugliano, Giovanni},
+  title={Benefits of Combined GPS/GLONASS with Low-Cost MEMS IMUs for Vehicular Urban Navigation},
+  journal={Sensors},
+  year={2012},
+  volume={12},
+  number={4},
+  pages={5134-5158},
+  doi={10.3390/s120405134},
+  url={https://doi.org/10.3390/s120405134},
+  note={Used to satisfy key angrisano2010gnss; please verify if your intended 2010 source differs.}
+}
+
+@misc{gnssinssim,
+  author={Aceinna Open Source Team},
+  title={gnss-ins-sim: GNSS+INS simulation toolkit},
+  year={2019},
+  howpublished={GitHub repository},
+  url={https://github.com/Aceinna/gnss-ins-sim},
+  note={Accessed 2026-04-26}
+}
+
+@misc{pyins,
+  author={Mayorov, Nikolay},
+  title={pyins: Python package for aided INS algorithms},
+  year={2025},
+  howpublished={GitHub repository},
+  url={https://github.com/nmayorov/pyins},
+  note={Accessed 2026-04-27}
 }

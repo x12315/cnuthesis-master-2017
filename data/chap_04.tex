@@ -1,107 +1,458 @@
-\chapter{代码设计}
+\chapter{基于GNSS/INS松耦合模型的自适应MCKF滤波器}
 
-\section{算法流程}
-\note{这里加全流程伪装代码}
-\note{这个伪代码是AI没能体现INS机械组织 和 一些时间戳匹配的相关算法逻辑
-需要修改}
+\section{算法推导}
+本节在第二章松耦合误差模型基础上，构建与第三章 MCKF 一致的离散滤波方程\cite{izanloo2016kalman}。连续时间系统模型与观测模型分别写为
+\begin{equation}
+	\delta \dot{\bm{x}}_k = \bm{F}_{\text{SINS}}\,\delta\bm{x}_k + \bm{G}_{\text{SINS}}\,\bm{w}_k,
+	\label{eq:ch4_continuous_process}
+\end{equation}
+\begin{equation}
+	\delta\bm{z}^{\text{LC}}_k = \bm{H}^{\text{LC}}_k\,\delta\bm{x}_k + \bm{e}^{\text{LC}}_k.
+	\label{eq:ch4_continuous_measure}
+\end{equation}
+其中，状态向量定义、系统矩阵与观测矩阵物理含义与第二章保持一致。
 
-\begin{algorithm}[H]
-\SetAlgoLined
-\SetKwInOut{Input}{输入}
-\SetKwInOut{Output}{输出}
-\Input{初始误差状态 $\delta\hat{\mathbf{x}}_0$（含SINS 15维 + GNSS时钟2维），初始协方差 $\mathbf{P}_0$，过程噪声协方差 $\mathbf{Q}=\operatorname{diag}(\mathbf{Q}_{\text{SINS}},\mathbf{Q}_{\text{GNSS}})$，观测噪声协方差 $\mathbf{R}$（初始），滑动窗口长度 $N$，最大迭代次数 $M$，收敛阈值 $\varepsilon$}
-\Output{每个时刻校正后的导航状态（位置、速度、姿态、时钟参数）}
-\BlankLine
+令相邻历元时间间隔为 $\Delta t_k=t_k-t_{k-1}$，则式(\ref{eq:ch4_continuous_process})可离散化为
+\begin{equation}
+	\delta\bm{x}_{k} = \bm{\Phi}_{k,k-1}\,\delta\bm{x}_{k-1} + \bm{\Gamma}_{k-1}\,\bm{w}_{k-1},
+	\label{eq:ch4_discrete_process}
+\end{equation}
+其中
+\begin{equation}
+	\bm{\Phi}_{k,k-1}=\exp\!\left(\bm{F}_{\text{SINS},k-1}\Delta t_k\right),
+\end{equation}
+\begin{equation}
+	\bm{\Gamma}_{k-1}=\int_0^{\Delta t_k}\exp\!\left(\bm{F}_{\text{SINS},k-1}\tau\right)\bm{G}_{\text{SINS},k-1}\,\mathrm{d}\tau.
+	\label{eq:ch4_gamma_integral}
+\end{equation}
+在本文实现中，过程噪声由陀螺零偏与加计零偏驱动，且在单个积分步内近似时不变，因此可采用一阶积分近似
+\begin{equation}
+	\bm{\Gamma}_{k-1}\approx
+	\begin{bmatrix}
+		\bm{0}_{9\times6}\\
+		\Delta t_k\bm{I}_{6\times6}
+	\end{bmatrix},
+	\label{eq:ch4_gamma_approx}
+\end{equation}
+该式对应工程实现中偏置子块噪声映射随步长线性缩放的形式。
 
-\For{每个时刻 $k = 1,2,\ldots$}{
-    % 预测
-    计算状态转移矩阵 $\bm{\Phi} = \operatorname{blkdiag}(\bm{\Phi}_{\text{SINS}}, \bm{\Phi}_{\text{GNSS}})$\;
-    $\delta\hat{\mathbf{x}}_{k|k-1} = \bm{\Phi} \cdot \delta\hat{\mathbf{x}}_{k-1|k-1}$\;
-    $\mathbf{P}_{k|k-1} = \bm{\Phi} \mathbf{P}_{k-1|k-1} \bm{\Phi}^T + \mathbf{G} \mathbf{Q} \mathbf{G}^T$\;
+基于离散模型，采用第三章给出的 MCKF 预测与迭代更新框架。预测阶段为
+\begin{align}
+	\hat{\delta\bm{x}}_{k|k-1} &= \bm{\Phi}_{k,k-1}\hat{\delta\bm{x}}_{k-1|k-1},\\
+	\bm{P}_{k|k-1} &= \bm{\Phi}_{k,k-1}\bm{P}_{k-1|k-1}\bm{\Phi}_{k,k-1}^{\mathrm T}
+	+ \bm{\Gamma}_{k-1}\bm{Q}_{k-1}\bm{\Gamma}_{k-1}^{\mathrm T}.
+	\label{eq:ch4_predict_cov}
+\end{align}
+更新阶段采用固定点迭代形式
+\begin{equation}
+	\hat{\delta\bm{x}}_{k|k}^{(i+1)}=
+	\hat{\delta\bm{x}}_{k|k-1}+\bm{K}_k^{(i)}
+	\left(\delta\bm{z}_k^{\text{LC}}-\bm{H}^{\text{LC}}_k\hat{\delta\bm{x}}_{k|k}^{(i)}\right),
+	\label{eq:ch4_mckf_iter}
+\end{equation}
+\begin{equation}
+	\bm{K}_k^{(i)}=\tilde{\bm{P}}_{k|k-1}^{(i)}\left(\bm{H}^{\text{LC}}_k\right)^{\mathrm T}
+	\left[\bm{H}^{\text{LC}}_k\tilde{\bm{P}}_{k|k-1}^{(i)}\left(\bm{H}^{\text{LC}}_k\right)^{\mathrm T}+\tilde{\bm{R}}_k^{(i)}\right]^{-1},
+	\label{eq:ch4_mckf_gain}
+\end{equation}
+其中 $\tilde{\bm{P}}_{k|k-1}^{(i)}$ 与 $\tilde{\bm{R}}_k^{(i)}$ 由最大相关熵权重矩阵重标定得到，具体构造见第三章相关推导。
+
+\subsection{过程噪声与观测噪声协方差设定}
+
+本节过程噪声模型沿用第二章状态方程设定，此处展开一阶高斯-马尔可夫过程，主要用于说明过程噪声参数的计算方式\cite{wang2018using}：
+\begin{equation}
+	\dot{\bm{b}}_g=-\frac{1}{\tau_g}\bm{b}_g+\bm{w}_g,
+	\qquad
+	\dot{\bm{b}}_a=-\frac{1}{\tau_a}\bm{b}_a+\bm{w}_a,
+	\label{eq:ch4_markov_bias}
+\end{equation}
+其中 $\tau_g,\tau_a$ 为相关时间常数，可由 Allan 方差辨识结果给出；$\bm{w}_g,\bm{w}_a$ 为零均值白噪声。
+
+设陀螺与加计稳态偏置标准差分别为 $\sigma_{bg},\sigma_{ba}$，则连续噪声谱密度可写为
+\begin{equation}
+	q_{bg}=\frac{2\sigma_{bg}^2}{\tau_g},
+	\qquad
+	q_{ba}=\frac{2\sigma_{ba}^2}{\tau_a}.
+	\label{eq:ch4_psd_from_allan}
+\end{equation}
+进而过程噪声协方差采用如下块对角形式
+\begin{equation}
+	\bm{Q}_{k}=
+	\operatorname{diag}
+	\left(
+	q_{bg}\bm{I}_{3\times3},
+	q_{ba}\bm{I}_{3\times3}
+	\right).
+	\label{eq:ch4_Qk_def}
+\end{equation}
+
+松耦合模型的观测量为 GNSS 位置与速度解与 INS 解的差值。由于 INS 误差已在状态方程中显式建模，量测噪声项主要由 GNSS 传感器噪声决定，因此观测噪声协方差可设为
+\begin{equation}
+	\bm{R}^{\text{GNSS}}_k=
+	\operatorname{diag}
+	\left(
+	\left(\sigma^{\text{GNSS}}_{r,E}\right)^2,\left(\sigma^{\text{GNSS}}_{r,N}\right)^2,\left(\sigma^{\text{GNSS}}_{r,U}\right)^2,
+	\left(\sigma^{\text{GNSS}}_{v,E}\right)^2,\left(\sigma^{\text{GNSS}}_{v,N}\right)^2,\left(\sigma^{\text{GNSS}}_{v,U}\right)^2
+	\right),
+	\label{eq:ch4_Rk_def}
+\end{equation}
+其中 $\sigma^{\text{GNSS}}_{r,\cdot}$ 与 $\sigma^{\text{GNSS}}_{v,\cdot}$ 分别表示 GNSS 位置解与速度解在各方向上的标准差，可由接收机指标或静态数据统计获得。上述 $\bm{Q}_k$ 与 $\bm{R}^{\text{GNSS}}_k$ 的参数化形式可直接用于后续仿真实验章节的数据填充与对比分析。
+
+
+%工程实现方法
+%1 自适应带宽新息矩阵的非正定问题
+% r_k_hat 采用了如下的方法进行正定保证 （以下方法表达为公式）
+        % m = (m + m.T) / 2
+        
+        % # 2. 特征值修正
+        % eigvals, eigvecs = np.linalg.eigh(m)
+        % min_eig = np.min(eigvals)
+        % if min_eig < eps:
+        %     eigvals = np.maximum(eigvals, eps)
+        %     m = eigvecs @ np.diag(eigvals) @ eigvecs.T
+        
+        % # 3. 可选：对角加载（双保险）
+        % # R = R + eps * np.eye(R.shape[0])
     
-    % 自适应核带宽
-    计算新息协方差估计 $\hat{\mathbf{P}}_s$ 和 $\hat{\mathbf{R}}_k$\;
-    $\sigma_{k,y} = \sqrt{\operatorname{tr}(\hat{\mathbf{R}}_k)}$\;
-    $\sigma_{k,x} = \sqrt{\operatorname{tr}(\mathbf{P}_{k|k-1})}$\;
-    
-    % TC观测：计算伪距/多普勒残差及观测矩阵
-    对每颗可见卫星 $n=1,\ldots,m$ 执行伪距和多普勒残差计算\;
-    构造残差向量 $\mathbf{z}_k$（长度 $2m$）和观测矩阵 $\mathbf{H}_k$（$2m \times 17$）\;
-    
-    % MCKF固定点迭代
-    $\delta\hat{\mathbf{x}}^{(0)} = \delta\hat{\mathbf{x}}_{k|k-1}$\;
-    计算 $\mathbf{B}_P = \operatorname{chol}(\mathbf{P}_{k|k-1})$, $\mathbf{B}_R = \operatorname{chol}(\mathbf{R}_k)$\;
-    $t = 1$\;
-    \While{$t \le M$}{
-        计算增广误差向量 $\mathbf{E}$ 及高斯核权重矩阵 $\mathbf{C}_x, \mathbf{C}_y$\;
-        更新等效协方差 $\tilde{\mathbf{P}} = \mathbf{B}_P \mathbf{C}_x^{-1} \mathbf{B}_P^T$, $\tilde{\mathbf{R}} = \mathbf{B}_R \mathbf{C}_y^{-1} \mathbf{B}_R^T$\;
-        计算卡尔曼增益 $\mathbf{K} = \tilde{\mathbf{P}} \mathbf{H}_k^T (\mathbf{H}_k \tilde{\mathbf{P}} \mathbf{H}_k^T + \tilde{\mathbf{R}})^{-1}$\;
-        $\delta\hat{\mathbf{x}}^{(t)} = \delta\hat{\mathbf{x}}_{k|k-1} + \mathbf{K} (\mathbf{z}_k - \mathbf{H}_k \delta\hat{\mathbf{x}}^{(t-1)})$\;
-        \eIf{ $\|\delta\hat{\mathbf{x}}^{(t)} - \delta\hat{\mathbf{x}}^{(t-1)}\| / \|\delta\hat{\mathbf{x}}^{(t-1)}\| < \varepsilon$ }{
-            \textbf{break}\;
-        }{
-            $t = t+1$\;
-        }
-    }
-    $\delta\hat{\mathbf{x}}_{k|k} = \delta\hat{\mathbf{x}}^{(t_{\text{end}})}$\;
-    $\mathbf{P}_{k|k} = (\mathbf{I} - \mathbf{K} \mathbf{H}_k) \mathbf{P}_{k|k-1}$\;
-    
-    % 反馈校正（ESKF）
-    利用 $\delta\hat{\mathbf{x}}_{k|k}$ 中的 $\delta\mathbf{r}^n,\delta\mathbf{v}^n,\bm{\phi},\bm{\epsilon}^b,\bm{\nabla}^b$ 修正SINS机械编排结果\;
-    利用 $\delta(c\delta t_{\text{offset}}), \delta(c\delta t_{\text{drift}})$ 修正接收机时钟\;
-    将误差状态清零：$\delta\hat{\mathbf{x}}_{k|k} = \mathbf{0}$\;
-}
-\caption{基于紧耦合模型的自适应最大相关熵卡尔曼滤波（TC-Adaptive MCKF）}
-\label{alg:TC_Adaptive_MCKF}
-\end{algorithm}
+        % return m
+
+% 2对于不同更新频率gnss与ins的信息最大化利用问题
+% 首先 一定应该保证时间戳的同步 在现实中 可以利用同步硬触发 ptp协议等多种方法保证 在此简略带过
+% 常见的imu传感器的更新频率大概在100hz以上 而gnss单元普遍在1hz 为了充分利用imu数据 且保证算法的输出一直持续以满足某些实时场景的需求
+% 工程设计上 当仅有imu数据进入时 执行imu数据的机械化编排以进行积分 然后输入mckf进行预测步骤 这里注意 仅当有imu数据进入时才能执行有效的预测 因为该预测模型的过程方程依赖imu的最新数据
+% 与此同时 一直等待gnss数据 当有gnss数据的时间戳与imu数据的时间戳小于一定阈值时 认为他们是一组同步的数据 此时先按照imu单独处理步骤执行机械化编排 预测
+%然后再进行后验更新 执行mckf的自适应带宽计算 和 标准更新步骤 
+% 如此 最终输出的结果 经过模型中误差的补偿 在任意时间都是可用的
 
 
-\section{代码项目实现}
+%3 注意到 上面lc模型的观测和过程其实都是线性的 因此 雅可比矩阵H和 F 其实就是观测矩阵和过程方程本身
+%请你结合chap2中的插图 chap3的算法原理 上文提到的所有方法 画一个
+%tikz
+%的流程图 展示算法的全貌
 
-(为了对算法进行实验 本文介绍一个自行开发的算法库 现在已经在github上开源 请参见链接xxxxxxx)
+\section{工程实现方法}
 
-\subsection{外部设施选型与实现边界}
+本节给出算法在工程落地中的关键计算方法，重点说明在数值稳定性与异步传感器调度上的实现细节。以下方法均与前述松耦合线性误差模型和第三章 MCKF 迭代更新保持一致。
 
-\note{补充对仿真数据来源 关键传感器信息的说明}
-本项目采用“核心算法自研、基础设施复用”的实现策略。数值计算层面复用 NumPy/SciPy/Pandas；惯导基础计算复用 pyins 的增量构造、姿态变换与地球参数函数；仿真层复用 gnss-ins-sim 生成可控轨迹与传感器观测；滤波器内核由独立的 filter\_box\_py 提供。该分工使算法研究聚焦于误差状态建模与融合逻辑，而非重复实现通用工具链。
+\subsection{自适应带宽新息协方差的正定化处理}
 
-在工程边界上，项目未将外部库整体嵌入，而是采用“按需接入”的方式：将 IMU 原始数据转换为增量后进入自有积分与误差传播链路，再通过统一接口与 EKF/IMM 内核对接。这种边界划分保证了外部能力可替换，同时保留了核心状态定义与更新节奏的可控性。
+在自适应带宽更新中，常通过新息协方差匹配计算等效观测噪声矩阵 $\hat{\bm{R}}_k$。受有限样本与数值舍入影响，$\hat{\bm{R}}_k$ 可能出现非对称或非正定，进而导致 Cholesky 分解失败。为保证后续迭代稳定，本文采用“对称化 + 特征值修正 + 可选对角加载”的三步处理。
 
-\subsection{中强度接口设计}
+设待修正矩阵为 $\bm{M}$，先执行对称化：
+\begin{equation}
+	\bm{M}_s=\frac{1}{2}\left(\bm{M}+\bm{M}^{\mathrm T}\right).
+	\label{eq:ch4_spd_sym}
+\end{equation}
+再对 $\bm{M}_s$ 做特征分解
+\begin{equation}
+	\bm{M}_s=\bm{U}\,\operatorname{diag}(\lambda_1,\ldots,\lambda_n)\,\bm{U}^{\mathrm T},
+\end{equation}
+并设定最小特征值阈值 $\varepsilon>0$，得到修正特征值
+\begin{equation}
+	\bar{\lambda}_i=\max(\lambda_i,\varepsilon),\quad i=1,\ldots,n.
+\end{equation}
+据此重构正定矩阵
+\begin{equation}
+	\bar{\bm{M}}=\bm{U}\,\operatorname{diag}(\bar{\lambda}_1,\ldots,\bar{\lambda}_n)\,\bm{U}^{\mathrm T}.
+	\label{eq:ch4_spd_rebuild}
+\end{equation}
+在高噪声场景下可进一步使用对角加载
+\begin{equation}
+	\bar{\bm{M}}\leftarrow\bar{\bm{M}}+\varepsilon\bm{I}.
+	\label{eq:ch4_spd_loading}
+\end{equation}
+工程实现中将 $\bar{\bm{M}}$ 作为 $\hat{\bm{R}}_k$ 的可分解近似，以保证 $\tilde{\bm{R}}_k$ 计算与固定点迭代可持续执行。
 
-本项目接口策略可概括为“中强度接口”：接口提供明确的数学语义与调用约定，但避免把应用约束硬编码到滤波器内核。其实现特征包括：
+\subsection{异步采样条件下的双速率融合调度}
 
+GNSS 与 IMU 典型更新频率存在显著差异（如 IMU 为 100 Hz 及以上，GNSS 为 1 Hz）。为最大化信息利用率并保证输出连续性，本文采用事件驱动的双速率调度策略。
+
+设 IMU 时间戳为 $t_k^{\mathrm{imu}}$，GNSS 时间戳为 $t_j^{\mathrm{gnss}}$，同步判据为
+\begin{equation}
+	\left|t_k^{\mathrm{imu}}-t_j^{\mathrm{gnss}}\right|\leq \Delta t_{\mathrm{sync}},
+	\label{eq:ch4_sync_rule}
+\end{equation}
+其中 $\Delta t_{\mathrm{sync}}$ 为工程容差阈值。系统按如下规则执行：
+\begin{equation}
+	\begin{aligned}
+		\text{IMU-only event}:\quad
+		\text{机械编排} \rightarrow \text{MCKF预测}
+	\end{aligned}
+\end{equation}
+\begin{equation}
+	\begin{aligned}
+		\text{IMU-GNSS matched event}:\quad
+		&\text{机械编排} \rightarrow \text{MCKF预测} \\
+		&\rightarrow \text{自适应带宽更新} \rightarrow \text{MCKF校正}
+	\end{aligned}
+.
+\end{equation}
+该机制保证了两点：一是在无 GNSS 观测时仍可依赖 IMU 传播得到连续导航输出；二是在 GNSS 到达且时间对齐时及时完成后验修正，抑制纯惯导误差累积。
+
+\subsection{线性误差模型下的工程化计算流程}
+
+由于本章松耦合误差模型在实现中为线性模型，过程雅可比与观测雅可比分别直接取系统矩阵与观测矩阵，即
+\begin{equation}
+	\bm{F}_k=\bm{F}_{\text{SINS},k},\qquad \bm{H}_k=\bm{H}^{\text{LC}}_k.
+	\label{eq:ch4_linear_jacobian}
+\end{equation}
+如此一来，避免了公式雅可比矩阵求解带来的算力消耗或数值雅可比矩阵求解法带来的误差，简化了计算。
+
+结合第二章模型结构与第三章 MCKF 原理，工程实现流程拆分为“主循环流程图”和“更新子模块流程图”，分别见图~\ref{fig:ch4_engineering_flow_main} 与图~\ref{fig:ch4_engineering_flow_correct}。
+
+
+% 还可以继续凹
+\begin{figure}[htbp]
+	\centering
+	\makebox[\textwidth][c]{\resizebox{0.94\textwidth}{!}{%
+	\begin{tikzpicture}[
+		node distance=6mm and 8mm,
+		>=Latex,
+		font=\footnotesize,
+		data/.style={draw, ellipse, align=center, text width=34mm, minimum height=8mm, inner sep=1.5pt},
+		sensor/.style={draw, rounded corners, align=center, text width=30mm, minimum height=8mm, inner sep=1.5pt},
+		block/.style={draw, rounded corners, align=center, text width=38mm, minimum height=8mm, inner sep=2pt},
+		decision/.style={draw, diamond, aspect=2.0, align=center, text width=26mm, inner sep=1.2pt, minimum width=22mm},
+		flow/.style={-Latex, thick},
+		loop/.style={-Latex, thick, dashed},
+		group/.style={draw, rounded corners, dashed, inner sep=4pt}
+	]
+		\node[block] (init) {初始化\\$\hat{\delta\bm{x}}_0,\bm{P}_0,\bm{Q},\bm{R}^{\text{GNSS}}$};
+		\node[decision, below=of init] (sync) {时间对齐?\\$|t_k-t_j|\leq\Delta t_{\text{sync}}$};
+		\node[data, left=22mm and 8mm of sync] (imuData) {补偿惯性增量\\$\bm{u}^{c}_k=[\Delta\bm{\theta}^{c}_k,\Delta\bm{v}^{c}_k]^T$\\$\Delta\bm{\theta}^{c}_k=(\bm{\theta}^{m}_k-\hat{\bm{\varepsilon}}^b_k\Delta t_k)$\\$\phantom{\Delta\bm{\theta}^{c}_k=}-(\bm{\theta}^{m}_{k-1}-\hat{\bm{\varepsilon}}^b_{k-1}\Delta t_{k-1})$\\$\Delta\bm{v}^{c}_k=(\bm{v}^{m}_k-\hat{\nabla}^b_k\Delta t_k)$\\$\phantom{\Delta\bm{v}^{c}_k=}-(\bm{v}^{m}_{k-1}-\hat{\nabla}^b_{k-1}\Delta t_{k-1})$};
+		\node[data, right=22mm and 8mm of sync] (gnssData) {GNSS观测向量\\$\bm{z}^{\mathrm{GNSS}}_k=[\bm{r}^{\mathrm{GNSS}}_k,\bm{v}^{\mathrm{GNSS}}_k]^T$};
+		\node[sensor, above left=8mm and 6mm of imuData] (imuRaw) {IMU原始测量\\$\bm{y}^{\mathrm{imu},m}_k=[\bm{\theta}^{m}_k,\bm{v}^{m}_k]^T$};
+		\node[sensor, above right=8mm and 6mm of gnssData] (gnssRaw) {GNSS原始测量\\$\bm{y}^{\mathrm{gnss},m}_k=[\tilde{\bm{r}}_k,\tilde{\bm{v}}_k]^T$};
+		\node[block, below=of sync] (mech) {INS机械编排\\名义状态传播};
+		\node[block, below=of mech] (pred) {Predict\\$\hat{\delta\bm{x}}^-_k=\bm{\Phi}_k\hat{\delta\bm{x}}^+_{k-1}$\\$\bm{P}^-_k=\bm{\Phi}_k\bm{P}^+_{k-1}\bm{\Phi}_k^T+\bm{\Gamma}_k\bm{Q}_k\bm{\Gamma}_k^T$};
+		\node[decision, below=of pred] (hasGnss) {匹配GNSS观测?};
+		\node[block, left=22mm of hasGnss] (predOut) {仅预测输出\\$\hat{\bm{x}}^-_k$};
+		\node[block, right=22mm of hasGnss] (correct) {进入更新子模块\\见图~\ref{fig:ch4_engineering_flow_correct}};
+		\node[block, below=11mm of hasGnss] (fb) {误差反馈\\$\hat{\bm{x}}_{k|k}=\hat{\bm{x}}_{k|k-1}\oplus\hat{\delta\bm{x}}_{k|k}$};
+		\node[block, below=of fb] (out) {输出导航解};
+
+		\draw[flow] (imuRaw.east) -- node[above, font=\scriptsize] {差分+偏置补偿} (imuData.west);
+		\draw[flow] (gnssRaw.west) -- node[above, font=\scriptsize] {坐标/时间统一} (gnssData.east);
+		\draw[flow] (imuData.east) -- node[above, font=\scriptsize] {$\bm{u}^{c}_k$} (sync.west);
+		\draw[flow] (gnssData.west) -- node[above, font=\scriptsize] {$\bm{z}^{\mathrm{GNSS}}_k$} (sync.east);
+		\draw[flow] (init) -- (sync);
+		\draw[flow] (sync) -- (mech);
+		\draw[flow] (mech) -- (pred);
+		\draw[flow] (pred) -- (hasGnss);
+		\draw[flow] (hasGnss) -- node[above, font=\scriptsize] {否} (predOut);
+		\draw[flow] (hasGnss) -- node[above, font=\scriptsize] {是} (correct);
+		\draw[flow] (predOut) |- (fb.west);
+		\draw[flow] (correct) |- (fb.east);
+		\draw[flow] (fb) -- (out);
+		\draw[loop] (out.west) .. controls +(-22mm,-1mm) and +(-22mm,1mm) .. node[left, font=\scriptsize] {$k\leftarrow k+1$} (sync.west);
+
+		\node[group, fit=(sync)(mech)(pred)(hasGnss)(correct)(fb), label={[font=\scriptsize]above:误差状态滤波器主模块}] {};
+	\end{tikzpicture}%
+	}}
+	\caption{GNSS/INS松耦合自适应MCKF主循环流程（数据流与递归回路）}
+	\label{fig:ch4_engineering_flow_main}
+\end{figure}
+
+\begin{figure}[htbp]
+	\centering
+	\makebox[\textwidth][c]{\resizebox{0.74\textwidth}{!}{%
+	\begin{tikzpicture}[
+		node distance=6mm and 8mm,
+		>=Latex,
+		font=\scriptsize,
+		block/.style={draw, rounded corners, align=center, text width=46mm, minimum height=8mm, inner sep=2pt},
+		decision/.style={draw, diamond, aspect=2.1, align=center, text width=26mm, inner sep=1.2pt, minimum width=22mm},
+		flow/.style={-Latex, thick},
+		loop/.style={-Latex, thick, dashed},
+		group/.style={draw, rounded corners, dashed, inner sep=4pt}
+	]
+		\node[block] (innov) {更新-1: 自适应带宽\\$\hat{\bm{R}}_k\leftarrow\hat{\bm{P}}_{s,k}-\bm{H}_k\bm{P}^-_k\bm{H}_k^T$\\SPD修正: $\hat{\bm{R}}_k\succ0$};
+		\node[block, below=of innov] (iterInit) {更新-2: 迭代初始化\\$\hat{\delta\bm{x}}_{k|k}^{(0)}\leftarrow\hat{\delta\bm{x}}_{k|k-1}$};
+		\node[block, below=of iterInit] (iterStep) {MCKF固定点迭代\\$\bm{K}^{(i)}_k=\tilde{\bm{P}}^{(i)}\bm{H}_k^T(\bm{H}_k\tilde{\bm{P}}^{(i)}\bm{H}_k^T+\tilde{\bm{R}}_k^{(i)})^{-1}$\\$\hat{\delta\bm{x}}_{k|k}^{(i+1)}=\hat{\delta\bm{x}}^-_k+\bm{K}^{(i)}_k(\delta\bm{z}_k-\bm{H}_k\hat{\delta\bm{x}}_{k|k}^{(i)})$};
+		\node[decision, below=of iterStep] (conv) {收敛判据\\$\|\Delta\hat{\delta\bm{x}}\|/\|\hat{\delta\bm{x}}\|<\varepsilon$?};
+		\node[block, below=of conv] (post) {更新-3: 后验更新\\$\bm{P}^+_k=(\bm{I}-\bm{K}_k\bm{H}_k)\bm{P}^-_k$\\输出 $\hat{\delta\bm{x}}^+_k,\bm{P}^+_k$};
+
+		\draw[flow] (innov) -- (iterInit);
+		\draw[flow] (iterInit) -- (iterStep);
+		\draw[flow] (iterStep) -- (conv);
+		\draw[flow] (conv) -- node[right, font=\scriptsize] {是} (post);
+		\draw[loop] (conv.east) .. controls +(12mm,0) and +(12mm,0) .. node[right, font=\scriptsize] {否, $i\leftarrow i+1$} (iterStep.east);
+
+		\node[group, fit=(innov)(iterInit)(iterStep)(conv)(post), label={[font=\scriptsize]above:更新子模块}] {};
+		\node[group, fit=(iterInit)(iterStep)(conv), label={[font=\scriptsize]above:MCKF 更新（固定点迭代）}] {};
+	\end{tikzpicture}%
+	}}
+	\caption{更新 子模块内部流程（含自适应带宽与固定点迭代）}
+	\label{fig:ch4_engineering_flow_correct}
+\end{figure}
+
+
+\section{仿真实验设计}
+
+为验证前述 GNSS/INS 松耦合自适应 MCKF 的有效性，本文在可控仿真环境下开展对比实验。实验设计遵循“统一轨迹、统一噪声模型、统一评价口径、仅替换滤波策略”的原则，保证结论可复现且具有可比性。
+
+\subsection{仿真平台与实现边界}
+
+本文采用 Aceinna 开源的 ``gnss-ins-sim'' 在 Python 环境生成带时间戳的 IMU 与 GNSS 观测数据，融合算法负责机械编排、状态预测与量测更新。数据读写、坐标变换及部分惯导基础工具参考 ``pyins'' 实现，松耦合自适应 MCKF 的误差状态建模、预测与迭代更新由本文独立完成\cite{gnssinssim,pyins}。为保证结果可复现，本文对同一工况重复运行 3 次，并对各项指标取均值、标准差与显著性统计。
+
+为避免平台差异对对比结果的影响，所有算法共用同一组仿真输入数据与初始条件，且统一采用第二章的 15 维松耦合误差状态定义与第三章的 MCKF 迭代更新框架。
+
+\subsection{传感器误差模型与采样设置}
+
+IMU 参数参考高精度惯导器件 Allan 方差指标进行设定，GNSS 观测噪声按仿真器字段 ``stdv'' 与 ``stdp'' 配置\cite{wang2018using,han2010quantization}。各项关键参数如表~\ref{tab:ch4_sim_sensor_params} 所示。
+
+\begin{table}[htbp]
+\centering
+\caption{仿真实验传感器参数设置}
+\label{tab:ch4_sim_sensor_params}
+\begin{tabular}{ccc}
+\toprule[1.5pt]
+传感器 & 参数项 & 设定值 \\
+\midrule[1pt]
+IMU-陀螺 & 初始偏置 $\bm{b}_g$ & $[0,0,0]$ \\
+IMU-陀螺 & 偏置漂移 $\bm{b}_{g,\text{drift}}$ & $[0.1,0.1,0.1]~(^{\circ}/\mathrm{h})$ \\
+IMU-陀螺 & 相关时间常数 $\bm{b}_{g,\text{corr}}$ & $[100,100,100]~\mathrm{s}$ \\
+IMU-陀螺 & 角随机游走 ARW & $[2.0\times10^{-3},2.0\times10^{-3},2.0\times10^{-3}]~(^{\circ}/\sqrt{\mathrm{h}})$ \\
+\midrule[1pt]
+IMU-加计 & 初始偏置 $\bm{b}_a$ & $[0,0,0]~\mathrm{m/s^2}$ \\
+IMU-加计 & 偏置漂移 $\bm{b}_{a,\text{drift}}$ & $[3.6\times10^{-6},3.6\times10^{-6},3.6\times10^{-6}]~\mathrm{m/s^2}$ \\
+IMU-加计 & 相关时间常数 $\bm{b}_{a,\text{corr}}$ & $[100,100,100]~\mathrm{s}$ \\
+IMU-加计 & 速度随机游走 VRW & $[2.5\times10^{-5},2.5\times10^{-5},2.5\times10^{-5}]~\mathrm{m/s}/\sqrt{\mathrm{h}}$ \\
+\midrule[1pt]
+GNSS & 噪声参数 ``stdv'' & $[5.0,5.0,7.0]$ \\
+GNSS & 噪声参数 ``stdp'' & $[0.05,0.05,0.05]$ \\
+\bottomrule[1.5pt]
+\end{tabular}
+\end{table}
+
+采样频率设置为 IMU 100 Hz、GNSS 1 Hz，对应前文提出的双速率融合调度。即在 IMU-only 事件执行机械编排与预测，在 GNSS 匹配事件执行“预测+更新”完整流程。
+
+\subsection{轨迹与工况设计}
+
+仿真轨迹采用城市道路风格长时程机动。初始位置设为纬度 $31.508183^{\circ}$、经度 $120.401989^{\circ}$、高度 $0~\mathrm{m}$；初始姿态为偏航 $183^{\circ}$、俯仰 $0^{\circ}$、横滚 $0^{\circ}$；初始速度为 $0~\mathrm{m/s}$。
+
+按运动指令统计，整段轨迹时长为 $1410.3~\mathrm{s}$（约 $23.5~\mathrm{min}$），最大车体速度为 $20~\mathrm{m/s}$（约 $72~\mathrm{km/h}$）。轨迹由静止段、加减速段及多次转向机动交替组成，其中包含约 $200~\mathrm{s}$ 初始静止阶段，并在 $5/8/9.5/10/15/20~\mathrm{m/s}$ 多速度级之间切换；同时设置约 $\pm90^{\circ}$ 及更大幅度航向变化，以模拟城市道路转弯与姿态扰动。
+
+该轨迹兼具“长时传播误差累积”与“机动段瞬态响应”两类特征，能够同时检验滤波器的稳态精度与动态鲁棒性。
+
+\subsection{对比方案与评价指标}
+
+为突出自适应 MCKF 在非理想噪声下的性能优势，本文采用以下两组算法进行同源数据对比\cite{izanloo2016kalman,xie2025adaptive}：
 \begin{enumerate}
-\item 误差状态采用 15 维统一向量并按语义分块（位置、速度、姿态、陀螺偏置、加计偏置），既利于线性化推导，也便于工程访问；
-\item 过程模型与观测模型均采用函数注入，雅可比既可外部提供，也可由数值差分自动生成，降低模型替换成本；
-\item EKF/IMM 内核保持“纯数学更新”，应用层特化（如业务限幅、场景规则）不下沉到滤波器基础类。
+\item 标准 EKF 松耦合（固定 $\bm{Q},\bm{R}$）；
+\item 自适应带宽 MCKF 松耦合（本文方法）。
 \end{enumerate}
 
-这种设计在论文实现阶段的优势是：既有足够的结构化约束保证正确性，又保留快速试验所需的迭代弹性。
+%相关的统计数据 还做了CEP 同时每组结果计算PI
 
-\subsection{更新频率与融合调度}
+评价指标选取位置、速度与姿态三类误差的均方根值（RMSE）和峰值误差。以位置误差为例，其 RMSE 定义为
+\begin{equation}
+\mathrm{RMSE}_{r}=\sqrt{\frac{1}{N}\sum_{k=1}^{N}\|\hat{\bm{r}}_k-\bm{r}_k^{\text{ref}}\|_2^2},
+\label{eq:ch4_rmse_pos}
+\end{equation}
+其中 $\hat{\bm{r}}_k$ 为估计位置，$\bm{r}_k^{\text{ref}}$ 为参考真值轨迹。速度与姿态指标采用同构定义。
 
-项目采用事件驱动的双速率更新机制：IMU 高频到达时执行预测步，GNSS 与 IMU 时间对齐时执行校正步。对应关系为：
+% 此外，为考察抗异常能力，在 GNSS 观测中引入少量脉冲型粗差（幅值远高于标称噪声）并保持其发生时刻对各算法一致，比较不同方法在异常段的误差放大程度与收敛恢复时间。
+%目前没搞这个哈 搞这个肯定要发散的
 
-\[
-\text{IMU only} \Rightarrow \mathbf{x}_{k|k-1}=f(\mathbf{x}_{k-1|k-1},\mathbf{u}_k),
-\]
+\subsection{实验流程与复现设置}
 
-\[
-\text{IMU + GNSS matched} \Rightarrow
-\mathbf{x}_{k|k}=\mathbf{x}_{k|k-1}+\mathbf{K}_k\left(\mathbf{z}_k-h(\mathbf{x}_{k|k-1})\right).
-\]
+实验执行流程如下：
+\begin{enumerate}
+\item 依据表~\ref{tab:ch4_sim_sensor_params} 生成 IMU/GNSS 原始观测与真值轨迹；
+\item 统一初值与协方差，分别运行 EKF 与自适应 MCKF，并对每组工况重复 3 次；
+\item 依据式(\ref{eq:ch4_rmse_pos}) 及对应速度、姿态误差定义统计指标，同时记录最大位置误差、CEP50 与 R95；
+\item 汇总时域误差曲线与统计表格，完成横向对比分析。
+\end{enumerate}
 
-该机制将“连续传播”与“离散观测修正”统一到同一主循环中，避免了低频观测缺失时的状态停滞，也避免了观测未到达时的伪更新。工程实现中通过时间戳容差判定 GNSS 是否参与当前时刻更新，保证了仿真与实测迁移时的一致调度逻辑。
+% 为降低随机性影响，每组工况可在不同随机种子下重复多次并取均值统计。上述设计保证了后续实验结果能够直接对应“精度、稳定性、鲁棒性”三个维度，为第五章结果分析提供一致的数据基础。
 
-\subsection{误差状态模型与数值实现}
+%（为了降低随机性影响 充分发挥数据仿真平台的优势 实验采用不同的随机种子重复了20次）
 
-误差传播采用 15 维线性化连续模型，状态转移矩阵由连续系统矩阵离散化得到。项目在离散化环节采用矩阵指数形式而非一阶近似，提高了短周期积分下的数值一致性。陀螺与加计偏置项采用一阶马尔可夫过程建模，时间常数参数化配置，可覆盖不同等级 IMU 的漂移特性。
+\subsection{实验结果分析}
 
-\subsection{可复现实验的工程组织}
+从典型单次运行曲线可以看出，MCKF 在初始静止段与后续机动切换段都表现出更快的收敛速度和更强的抑振能力。图~\ref{fig:ch4_result_attitude} 与图~\ref{fig:ch4_result_heading} 给出了姿态和航向误差的典型单次运行结果，可以看到 MCKF 在约 $200~\mathrm{s}$ 后已基本压制到 $1^{\circ}$ 以内，而 EKF 在初始阶段出现明显误差尖峰，随后虽然能够回落，但仍保留较长时间的漂移尾迹。
 
-项目将“算法对象接口”与“仿真数据通道”进行标准化对接，使同一仿真任务下可替换不同算法并输出统一格式结果。这种组织方式直接支持论文所需的可复现实验流程：同一运动定义、同一噪声模型、同一评估口径，仅替换算法实现即可完成横向比较。
+图~\ref{fig:ch4_result_position_3d} 与图~\ref{fig:ch4_result_position_h} 进一步表明，MCKF 的位置误差大部分时间稳定在 $4\sim6~\mathrm{m}$ 区间，水平误差也保持在较低水平；相较之下，EKF 在中后段出现持续累积的偏差，并伴随多次局部尖峰。图~\ref{fig:ch4_result_velocity} 和图~\ref{fig:ch4_result_trajectory} 则说明，自适应带宽更新不仅改善了速度误差的稳定性，也使三维轨迹更贴近参考轨迹，避免了 EKF 在长时传播中的明显偏离。
 
-\subsection{小结}
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[b]{0.49\textwidth}
+\centering
+\includegraphics[width=\textwidth]{experiment/typical_attitude_error_3d.png}
+\caption{3D 姿态误差}
+\label{fig:ch4_result_attitude}
+\end{subfigure}
+\begin{subfigure}[b]{0.49\textwidth}
+\centering
+\includegraphics[width=\textwidth]{experiment/typical_heading_error.png}
+\caption{航向误差}
+\label{fig:ch4_result_heading}
+\end{subfigure}
+\caption{典型单次运行的姿态误差结果}
+\label{fig:ch4_result_attitude_group}
+\end{figure}
 
-本项目的核心价值不在于堆叠更多算法模块，而在于形成了可演化的实现框架：通过外部设施复用降低重复劳动，通过中强度接口保持迭代效率，通过事件驱动更新机制保证融合正确性，并以参数化误差模型与稳定离散化方法支撑算法可解释性与可复现性。
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[b]{0.49\textwidth}
+\centering
+\includegraphics[width=\textwidth]{experiment/typical_position_error_3d.png}
+\caption{3D 位置误差}
+\label{fig:ch4_result_position_3d}
+\end{subfigure}
+\begin{subfigure}[b]{0.49\textwidth}
+\centering
+\includegraphics[width=\textwidth]{experiment/typical_position_error_horizontal.png}
+\caption{水平位置误差}
+\label{fig:ch4_result_position_h}
+\end{subfigure}
+\caption{典型单次运行的位置误差结果}
+\label{fig:ch4_result_position_group}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[b]{0.49\textwidth}
+\centering
+\includegraphics[width=\textwidth]{experiment/typical_velocity_error_3d.png}
+\caption{3D 速度误差}
+\label{fig:ch4_result_velocity}
+\end{subfigure}
+\begin{subfigure}[b]{0.49\textwidth}
+\centering
+\includegraphics[width=\textwidth]{experiment/typical_trajectory_3d.png}
+\caption{三维轨迹对比}
+\label{fig:ch4_result_trajectory}
+\end{subfigure}
+\caption{典型单次运行的速度与轨迹结果}
+\label{fig:ch4_result_velocity_group}
+\end{figure}
+
+三次重复实验的统计结果如表~\ref{tab:ch4_result_stats} 所示。MCKF 的位置 RMSE 为 $4.24\pm0.25~\mathrm{m}$，最大位置误差为 $7.07\pm0.37~\mathrm{m}$，CEP50 与 R95 分别为 $2.27\pm0.15~\mathrm{m}$ 和 $4.91\pm0.65~\mathrm{m}$，表明其输出在绝大多数时刻都保持在较小误差带内。EKF 的均值则被一次发散工况显著拉高，位置 RMSE 达到 $1258.24\pm2170.26~\mathrm{m}$，最大位置误差达到 $2810.92\pm4844.16~\mathrm{m}$，CEP50 与 R95 也分别上升到 $677.16~\mathrm{m}$ 和 $2544.99~\mathrm{m}$。速度 RMSE 方面，MCKF 为 $0.057\pm0.002~\mathrm{m/s}$，EKF 为 $4.481\pm5.433~\mathrm{m/s}$，说明自适应带宽更新对速度通道同样具有明显的约束作用。
+
+\begin{table}[htbp]
+\centering
+\caption{仿真实验结果统计（每组工况重复 3 次）}
+\label{tab:ch4_result_stats}
+\begin{tabular}{lcc}
+\toprule[1.5pt]
+指标 & MCKF & EKF \\
+\midrule[1pt]
+位置 RMSE / m & $4.24\pm0.25$ & $1258.24\pm2170.26$ \\
+速度 RMSE / m/s & $0.057\pm0.002$ & $4.481\pm5.433$ \\
+姿态 RMSE / $^{\circ}$ & $4.87\pm1.46$ & $5.14\pm1.24$ \\
+最大位置误差 / m & $7.07\pm0.37$ & $2810.92\pm4844.16$ \\
+CEP50 / m & $2.27\pm0.15$ & $677.16\pm1166.12$ \\
+R95 / m & $4.91\pm0.65$ & $2544.99\pm4393.80$ \\
+\bottomrule[1.5pt]
+\end{tabular}
+\end{table}
+
+需要说明的是，位置 RMSE 的统计检验结果为 $p=0.422$，在当前仅 3 次重复的样本规模下尚不足以给出严格的显著性结论；但从单次曲线、峰值误差与分位数统计来看，MCKF 的稳定性优势非常明确，尤其在 EKF 出现发散的工况下差异更加突出。结合结果可以认为，本章自适应带宽机制的主要收益不在于对均值的微小修正，而在于显著抑制长时漂移和异常放大，从而提高 GNSS/INS 松耦合系统在复杂轨迹下的工程可用性。
+
+
+%仿真结果分析
+%xxxxxxxxxx
+
+%此外 值得一提的是 作为

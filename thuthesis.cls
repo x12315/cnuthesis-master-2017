@@ -143,12 +143,11 @@
   nomarginpar}
 \ifthu@bachelor
   \geometry{
-    left=32mm,
-    headheight=5mm,
-    headsep=5mm,
-    textheight=220mm,
-    bottom=37mm,
-    footskip=17mm}
+    top=2.5cm,
+    bottom=2.5cm,
+    left=2cm,
+    right=2cm,
+    bindingoffset=0.5cm}
 \else \ifthu@master
   \geometry{
     top=25mm,
@@ -194,6 +193,7 @@
 \newcommand{\cusong}{\CJKfamily{cusong}}
 \setCJKfamilyfont{xinwei}{STXinwei}
 \newcommand{\xinwei}{\CJKfamily{xinwei}}
+\newfontfamily\thu@timesnewroman{Times New Roman}
 \def\thu@def@fontsize#1#2{%
   \expandafter\newcommand\csname #1\endcsname[1][1.3]{%
     \fontsize{#2}{##1\dimexpr #2}\selectfont}}
@@ -487,7 +487,7 @@
 \ifthu@postdoctor
 \newcommand\thu@underline[2][6em]{\hskip1pt\underline{\hb@xt@ #1{\hss#2\hss}}\hskip3pt}
 \else
-\newcommand\thu@underline[2][6em]{\hskip1pt{\hb@xt@ #1{\hss#2\hss}}\hskip3pt}
+\newcommand\thu@underline[2][6em]{\hskip1pt\underline{\hb@xt@ #1{\hss#2\hss}}\hskip3pt}
 \fi
 
 \newlength{\thu@title@width}
@@ -551,14 +551,16 @@
 %      \ifthu@secret{\heiti\sanhao\thu@secretlevel\thu@secret@content}\else\rule{1cm}{0cm}\fi}
     \ifthu@bachelor
       \parbox[t][1.2cm][t]{\textwidth}{%
-        \hfill\wuhao\songti 论文编码\thu@title@sep\ifx\thu@catalognumber\@empty\thu@uid\else\thu@catalognumber\fi\par}
-      \vskip0.8cm
-      {\yihao\heiti\thu@schoolname\par}
-      \vskip0.6cm
-      {\xiaoer\heiti\ziju{0.5}\thu@bachelor@title\par}
+        \hfill\xiaosi\kaishu 论文编码\thu@title@sep\ifx\thu@catalognumber\@empty\thu@uid\else\thu@catalognumber\fi\par}
+      \vskip0.9cm
+      {\includegraphics[width=9.0cm,height=2.38cm]{college_logo}\par}
+      \vskip12bp
+      {\songti\bfseries\xiaoyi[1.0] 首都师范大学本科毕业论文\par}
       \vskip2.0cm
-      {\heiti\xiaoer\thu@ctitle\par}
-      \vskip1.4cm
+      {\heiti\erhao[1.0]\thu@ctitle\par}
+      \vskip0.5\baselineskip
+      {\thu@timesnewroman\xiaoer[1.0]\thu@etitle\par}
+      \vskip5.0cm
     \else
     \vskip1cm
     \parbox[t][1.16cm][t]{\textwidth}{
@@ -582,8 +584,8 @@
     \ifthu@bachelor
       \vskip1.2cm
       \parbox[t][8.2cm][t]{\textwidth}{%
-        {\fangsong\sanhao[1.8]%
-          \hspace*{1.8cm}
+        {\fangsong\sanhao[1.0]%
+          \hspace*{0.5cm}\makebox[\dimexpr\textwidth-0.5cm\relax][c]{%
           \setlength{\thu@title@width}{4.5em}
           \setlength{\extrarowheight}{7pt}
           \def\thu@studentid{\ifx\thu@id\@empty\thu@uid\else\thu@id\fi}
@@ -604,7 +606,8 @@
               & \thu@underline[12em]{\thu@csupervisor}\\
             \thu@put@title{完成日期}                 & \thu@title@sep
               & \thu@underline[12em]{\thu@cdate}\\
-          \end{tabular}
+            \end{tabular}
+          }
         }}
     \else
 %      \vskip 5bp
