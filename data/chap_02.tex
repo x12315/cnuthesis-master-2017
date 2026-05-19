@@ -7,8 +7,8 @@
 \section{误差模型的系统动态模型}
 
 本节首先建立滤波器误差状态，再据此推导系统动力学方程和矩阵化表达，为后续量测更新与离散实现提供基础。
-\subsection{松耦合误差状态向量定义}
-针对 GNSS/INS 松耦合（LC）架构，采用如下 15 维误差状态向量\cite{HU2018755,yan2019strapdown}：
+
+针对 GNSS/INS 松耦合（LC）架构，采用如下 15 维误差状态向量\cite{yan2019strapdown}：
 \begin{equation}
     \delta \bm{x}_\text{LC} = [\delta \bm{r}^n, \delta \bm{v}^n, \bm{\phi}, \bm{\varepsilon}^b, \nabla^b]^T
     \label{eq:error_state}
@@ -20,7 +20,7 @@ $\bm{\phi} = [\phi_E, \phi_N, \phi_U]^T$ 为东向、北向、天向失准角向
 $\bm{\varepsilon}^b = [\varepsilon_X, \varepsilon_Y, \varepsilon_Z]^T$ 为陀螺零偏；
 $\nabla^b = [\nabla_X, \nabla_Y, \nabla_Z]^T$ 为加速度计零偏。
 
-\section{松耦合误差动力学模型}
+\section{松耦合误差动力学模型与矩阵形式}
 基于捷联惯导误差微扰理论，并结合 IMU 随机误差的一阶马尔可夫建模，可得到惯性导航系统（INS）误差状态动力学模型\cite{yan2019strapdown,9106151}：
 \begin{equation}
     \begin{cases}
@@ -37,12 +37,9 @@ $\nabla^b = [\nabla_X, \nabla_Y, \nabla_Z]^T$ 为加速度计零偏。
 $\bm{C}_b^n$ 为载体坐标系至导航坐标系的转换矩阵；
 $T_\varepsilon$、$T_\nabla$ 分别为陀螺和加速度计相关时间；
 $\bm{w}_\varepsilon$、$\bm{w}_\nabla$ 为驱动噪声，其统计特性可通过 Allan 方差分析或 IMU 产品指标估计\cite{wang2018using}；
-误差向量 $\delta \boldsymbol{\omega}_{ie}^n$、$\delta \boldsymbol{\omega}_{en}^n$ 以及重力误差 $\delta \boldsymbol{g}^n$，
-可表示为状态向量中位置误差 $\delta \boldsymbol{r}^n$、速度误差 $\delta \boldsymbol{v}^n$ 和失准角 $\boldsymbol{\phi}$ 的函数；
-$\boldsymbol{\omega}_{ib}^b$ 和 $\boldsymbol{f}^b$ 分别表示陀螺仪与加速度计测量的角速度和比力。
-
-
-\subsection{模型的矩阵形式}
+误差向量 $\delta \bm{\omega}_{ie}^n$、$\delta \bm{\omega}_{en}^n$ 以及重力误差 $\delta \bm{g}^n$，
+可表示为状态向量中位置误差 $\delta \bm{r}^n$、速度误差 $\delta \bm{v}^n$ 和失准角 $\bm{\phi}$ 的函数；
+$\bm{\omega}_{ib}^b$ 和 $\bm{f}^b$ 分别表示陀螺仪与加速度计测量的角速度和比力。
 
 为便于滤波器离散实现，式(\ref{eq:ins_error_model})可改写为标准状态空间形式：
 \begin{equation}
@@ -63,33 +60,33 @@ $\bm{G}_{\text{SINS}}$ 为噪声驱动矩阵，用于建立误差状态与噪声
 $\bm{F}_\text{SINS}$ 可进一步写作多个子矩阵的组合形式：
 % 系统状态转移矩阵 F_SINS
 \begin{equation}
-    \boldsymbol{F}_\text{SINS} =
+    \bm{F}_\text{SINS} =
     \begin{bmatrix}
-        \boldsymbol{M}_{rr}       & \boldsymbol{I}_{3\times3} & \boldsymbol{0}_{3\times3} & \boldsymbol{0}_{3\times3}                          & \boldsymbol{0}_{3\times3}                     \\[6pt]
-        \boldsymbol{M}_{vr}       & \boldsymbol{M}_{vv}       & \boldsymbol{M}_{v\phi}    & \boldsymbol{0}_{3\times3}                          & \boldsymbol{C}_b^n                            \\[6pt]
-        \boldsymbol{M}_{\phi r}   & \boldsymbol{M}_{\phi v}   & \boldsymbol{M}_{\phi\phi} & -\boldsymbol{C}_b^n                                & \boldsymbol{0}_{3\times3}                     \\[6pt]
-        \boldsymbol{0}_{3\times3} & \boldsymbol{0}_{3\times3} & \boldsymbol{0}_{3\times3} & -\dfrac{1}{T_\varepsilon}\boldsymbol{I}_{3\times3} & \boldsymbol{0}_{3\times3}                     \\[6pt]
-        \boldsymbol{0}_{3\times3} & \boldsymbol{0}_{3\times3} & \boldsymbol{0}_{3\times3} & \boldsymbol{0}_{3\times3}                          & -\dfrac{1}{T_\nabla}\boldsymbol{I}_{3\times3}
+        \bm{M}_{rr}       & \bm{I}_{3\times3} & \bm{0}_{3\times3} & \bm{0}_{3\times3}                          & \bm{0}_{3\times3}                     \\[6pt]
+        \bm{M}_{vr}       & \bm{M}_{vv}       & \bm{M}_{v\phi}    & \bm{0}_{3\times3}                          & \bm{C}_b^n                            \\[6pt]
+        \bm{M}_{\phi r}   & \bm{M}_{\phi v}   & \bm{M}_{\phi\phi} & -\bm{C}_b^n                                & \bm{0}_{3\times3}                     \\[6pt]
+        \bm{0}_{3\times3} & \bm{0}_{3\times3} & \bm{0}_{3\times3} & -\dfrac{1}{T_\varepsilon}\bm{I}_{3\times3} & \bm{0}_{3\times3}                     \\[6pt]
+        \bm{0}_{3\times3} & \bm{0}_{3\times3} & \bm{0}_{3\times3} & \bm{0}_{3\times3}                          & -\dfrac{1}{T_\nabla}\bm{I}_{3\times3}
     \end{bmatrix}_{15\times15}
 \end{equation}
 
 
 \begin{equation}
     \begin{aligned}
-        \boldsymbol{f}^n          & = \boldsymbol{C}_{b}^n\boldsymbol{f}_{b},                                                                                                               \\
-        \boldsymbol{M}_{v\phi}    & = \bigl\lfloor \boldsymbol{f}^n \times \bigr\rfloor,                                                                                                    \\
-        \boldsymbol{M}_{vv}       & = \bigl( \boldsymbol{v}^n \times \bigr)\boldsymbol{M}_{av} - \bigl\lfloor (2\boldsymbol{\omega}_{ie}^n+\boldsymbol{\omega}_{en}^n) \times \bigr\rfloor, \\
-        \boldsymbol{M}_{vr}       & = \bigl( \boldsymbol{v}^n \times \bigr)(2\boldsymbol{M}_1+\boldsymbol{M}_2) + \boldsymbol{M}_3,                                                         \\[4pt]
-        \boldsymbol{M}_{\phi\phi} & = -\bigl\lfloor \boldsymbol{\omega}_{in}^n \times \bigr\rfloor,                                                                                         \\
-        \boldsymbol{M}_{\phi v}   & = \boldsymbol{M}_{av},                                                                                                                                  \\
-        \boldsymbol{M}_{\phi r}   & = \boldsymbol{M}_1 + \boldsymbol{M}_2.
+        \bm{f}^n          & = \bm{C}_{b}^n\bm{f}_{b},                                                                                                               \\
+        \bm{M}_{v\phi}    & = \bigl\lfloor \bm{f}^n \times \bigr\rfloor,                                                                                                    \\
+        \bm{M}_{vv}       & = \bigl( \bm{v}^n \times \bigr)\bm{M}_{av} - \bigl\lfloor (2\bm{\omega}_{ie}^n+\bm{\omega}_{en}^n) \times \bigr\rfloor, \\
+        \bm{M}_{vr}       & = \bigl( \bm{v}^n \times \bigr)(2\bm{M}_1+\bm{M}_2) + \bm{M}_3,                                                         \\[4pt]
+        \bm{M}_{\phi\phi} & = -\bigl\lfloor \bm{\omega}_{in}^n \times \bigr\rfloor,                                                                                         \\
+        \bm{M}_{\phi v}   & = \bm{M}_{av},                                                                                                                                  \\
+        \bm{M}_{\phi r}   & = \bm{M}_1 + \bm{M}_2.
     \end{aligned}
 \end{equation}
 
 
 % M1
 \begin{equation}
-    \boldsymbol{M}_1 =
+    \bm{M}_1 =
     \begin{bmatrix}
         0                  & 0 & 0 \\
         -\omega_{ie}\sin L & 0 & 0 \\
@@ -99,7 +96,7 @@ $\bm{F}_\text{SINS}$ 可进一步写作多个子矩阵的组合形式：
 
 % M2
 \begin{equation}
-    \boldsymbol{M}_2 =
+    \bm{M}_2 =
     \begin{bmatrix}
         0                           & 0 & \dfrac{v_N}{R_{Mh}^2}        \\[4pt]
         0                           & 0 & -\dfrac{v_E}{R_{Nh}^2}       \\[4pt]
@@ -109,7 +106,7 @@ $\bm{F}_\text{SINS}$ 可进一步写作多个子矩阵的组合形式：
 
 % Mav
 \begin{equation}
-    \boldsymbol{M}_{av} =
+    \bm{M}_{av} =
     \begin{bmatrix}
         0                      & -\dfrac{1}{R_{Mh}} & 0 \\[4pt]
         \dfrac{1}{R_{Nh}}      & 0                  & 0 \\[4pt]
@@ -119,7 +116,7 @@ $\bm{F}_\text{SINS}$ 可进一步写作多个子矩阵的组合形式：
 
 % Mpv
 \begin{equation}
-    \boldsymbol{M}_{rv} =
+    \bm{M}_{rv} =
     \begin{bmatrix}
         0                      & \dfrac{1}{R_{Mh}} & 0 \\[4pt]
         \dfrac{\sec L}{R_{Nh}} & 0                 & 0 \\[4pt]
@@ -129,7 +126,7 @@ $\bm{F}_\text{SINS}$ 可进一步写作多个子矩阵的组合形式：
 
 % Mpp
 \begin{equation}
-    \boldsymbol{M}_{rr} =
+    \bm{M}_{rr} =
     \begin{bmatrix}
         0                               & 0 & -\dfrac{v_N}{R_{Mh}^2}       \\[4pt]
         \dfrac{v_E\sec L\tan L}{R_{Nh}} & 0 & -\dfrac{v_E\sec L}{R_{Nh}^2} \\[4pt]
@@ -137,7 +134,7 @@ $\bm{F}_\text{SINS}$ 可进一步写作多个子矩阵的组合形式：
     \end{bmatrix}
 \end{equation}
 
-其中 $L$ 表示纬度；$\bm{v}$ 与 $\boldsymbol{C}_{b}^n$ 可由 INS 机械编排结果获得。
+其中 $L$ 表示纬度；$\bm{v}$ 与 $\bm{C}_{b}^n$ 可由 INS 机械编排结果获得。
 
 
 \section{松耦合观测模型}
@@ -176,7 +173,7 @@ $E[(\bm{e}_r^T, \bm{e}_{vi}^T)^T(\bm{e}_r^T, \bm{e}_{vk}^T)] = \bm{R}_k\delta_{i
     =
     \begin{pmatrix}
         \bm{r}_1^{\text{IMU}} - \bm{r}_1^{\text{GNSS}} + \bm{C}_n^b \bm{e}^b \\[4pt]
-        \bm{v}_1^{\text{IMU}} - \bm{v}_1^{\text{GNSS}} - (\boldsymbol{\omega}_n^i \times) \bm{C}_n^b \mathbf{e}^b - \bm{C}_n^b (\mathbf{e}^b \times) \boldsymbol{\omega}_{ib}^b
+        \bm{v}_1^{\text{IMU}} - \bm{v}_1^{\text{GNSS}} - (\bm{\omega}_n^i \times) \bm{C}_n^b \mathbf{e}^b - \bm{C}_n^b (\mathbf{e}^b \times) \bm{\omega}_{ib}^b
     \end{pmatrix},
 \end{equation}
 
