@@ -1,34 +1,30 @@
 % !TeX root = ../main.tex
 
-\chapter{GNSS/INS误差模型与观测算法}
+\chapter{松耦合组合导航误差模型与观测方法}
 
-本章围绕 GNSS/INS 组合导航滤波器的建模过程展开，目标是给出后续算法实现所需的统一状态空间表达。首先定义松耦合框架下的误差状态向量，并给出 INS 误差动力学方程；随后将连续时间模型整理为矩阵形式，明确系统矩阵与噪声驱动项；在此基础上，构建包含杆臂改正的松耦合观测模型\cite{yan2019strapdown,9106151}。上述建模结果将作为后续鲁棒滤波与参数优化方法设计的基础。
+本章围绕全球导航卫星系统（GNSS）/惯性导航系统（INS）组合导航滤波器的建模过程展开，目标是给出后续算法实现所需的统一状态空间表达。首先定义松耦合框架下的误差状态向量，并给出 INS 误差动力学方程；随后将连续时间模型整理为矩阵形式，明确系统矩阵与噪声驱动项；在此基础上，构建包含杆臂改正的松耦合观测模型\cite{yan2019strapdown}。上述建模结果将作为后续鲁棒滤波与参数优化方法设计的基础。
+
+\enlargethispage{1.5\baselineskip}
 
 \section{误差模型的系统动态模型}
 
 本节首先建立滤波器误差状态，再据此推导系统动力学方程和矩阵化表达，为后续量测更新与离散实现提供基础。
-
 针对 GNSS/INS 松耦合（LC）架构，采用如下 15 维误差状态向量\cite{yan2019strapdown}：
 \begin{equation}
     \delta \bm{x}_\text{LC} = [\delta \bm{r}^n, \delta \bm{v}^n, \bm{\phi}, \bm{\varepsilon}^b, \nabla^b]^T
     \label{eq:error_state}
 \end{equation}
-式中：上标 $n$ 表示导航坐标系，$b$ 表示载体坐标系。本文默认导航坐标系采用 ENU（东-北-天）约定；若个别公式沿用参考文献记号，仅视为符号习惯，不改变其物理含义。
-$\delta \bm{r}^n = [\delta r_E, \delta r_N, \delta r_U]^T$ 为东向、北向、天向位置误差向量；
-$\delta \bm{v}^n = [\delta v_E, \delta v_N, \delta v_U]^T$ 为东向、北向、天向速度误差向量；
-$\bm{\phi} = [\phi_E, \phi_N, \phi_U]^T$ 为东向、北向、天向失准角向量；
-$\bm{\varepsilon}^b = [\varepsilon_X, \varepsilon_Y, \varepsilon_Z]^T$ 为陀螺零偏；
-$\nabla^b = [\nabla_X, \nabla_Y, \nabla_Z]^T$ 为加速度计零偏。
+式中：上标 $n$ 表示导航坐标系， $b$ 表示载体坐标系。本文默认导航坐标系采用 ENU（东-北-天）约定；若个别公式沿用参考文献记号，仅视为符号习惯，不改变其物理含义。$\delta \bm{r}^n = [\delta r_E, \delta r_N, \delta r_U]^T$ 为东向、北向、天向位置误差向量；$\delta \bm{v}^n = [\delta v_E, \delta v_N, \delta v_U]^T$ 为东向、北向、天向速度误差向量；$\bm{\phi} = [\phi_E, \phi_N, \phi_U]^T$ 为东向、北向、天向失准角向量；$\bm{\varepsilon}^b = [\varepsilon_X, \varepsilon_Y, \varepsilon_Z]^T$ 为陀螺零偏；$\nabla^b = [\nabla_X, \nabla_Y, \nabla_Z]^T$ 为加速度计零偏。
 
 \section{松耦合误差动力学模型与矩阵形式}
-基于捷联惯导误差微扰理论，并结合 IMU 随机误差的一阶马尔可夫建模，可得到惯性导航系统（INS）误差状态动力学模型\cite{yan2019strapdown,9106151}：
+基于捷联惯导误差微扰理论，并结合 IMU 随机误差的一阶马尔可夫建模，可得到惯性导航系统（INS）误差状态动力学模型\cite{yan2019strapdown}：
 \begin{equation}
     \begin{cases}
-        \delta \dot{\bm{r}}^n = -\bm{\omega}_{en}^n \times \delta \bm{r}^n + \delta \bm{v}^n                                                           \\[6pt]
-        \delta \dot{\bm{v}}^n = \bm{C}_b^n \bm{f}^b \times \bm{\phi} - \left(2\bm{\omega}_{ie}^n + \bm{\omega}_{en}^n\right) \times \delta \bm{v}^n    \\[6pt]
-        \quad\quad\quad\quad -\left(2\delta\bm{\omega}_{ie}^n + \delta\bm{\omega}_{en}^n\right) \times \bm{v}^n +\delta \bm{g}^n + \bm{C}_b^n \nabla^b \\[6pt]
-        \dot{\bm{\phi}} = -\bm{\omega}_{in}^n \times \bm{\phi} + \delta\bm{\omega}_{in}^n - \bm{C}_b^n \bm{\varepsilon}^b                              \\[6pt]
-        \dot{\bm{\varepsilon}}^b = -\dfrac{1}{T_\varepsilon} \bm{\varepsilon}^b + \bm{w}_\varepsilon                                                   \\[6pt]
+        \delta \dot{\bm{r}}^n = -\bm{\omega}_{en}^n \times \delta \bm{r}^n + \delta \bm{v}^n                                                           \\[4pt]
+        \delta \dot{\bm{v}}^n = \bm{C}_b^n \bm{f}^b \times \bm{\phi} - \left(2\bm{\omega}_{ie}^n + \bm{\omega}_{en}^n\right) \times \delta \bm{v}^n    \\[4pt]
+        \quad\quad\quad\quad -\left(2\delta\bm{\omega}_{ie}^n + \delta\bm{\omega}_{en}^n\right) \times \bm{v}^n +\delta \bm{g}^n + \bm{C}_b^n \nabla^b \\[4pt]
+        \dot{\bm{\phi}} = -\bm{\omega}_{in}^n \times \bm{\phi} + \delta\bm{\omega}_{in}^n - \bm{C}_b^n \bm{\varepsilon}^b                              \\[4pt]
+        \dot{\bm{\varepsilon}}^b = -\dfrac{1}{T_\varepsilon} \bm{\varepsilon}^b + \bm{w}_\varepsilon                                                   \\[4pt]
         \dot{\nabla}^b = -\dfrac{1}{T_\nabla} \nabla^b + \bm{w}_\nabla
     \end{cases}
     \label{eq:ins_error_model}
@@ -57,15 +53,17 @@ $\bm{w}_k \sim N(0, \bm{Q}_k)$；$\bm{F}_{\text{SINS}}$ 为系统动力学矩阵
 \]
 $\bm{G}_{\text{SINS}}$ 为噪声驱动矩阵，用于建立误差状态与噪声源之间的映射关系。
 
+为简洁表达，下文以 $\lfloor \bm{a} \times \rfloor$ 表示三维向量 $\bm{a}$ 对应的斜对称矩阵（叉乘矩阵），即对任意向量 $\bm{b}$，有 $\lfloor \bm{a} \times \rfloor \bm{b} = \bm{a} \times \bm{b}$。
+
 $\bm{F}_\text{SINS}$ 可进一步写作多个子矩阵的组合形式：
 % 系统状态转移矩阵 F_SINS
 \begin{equation}
     \bm{F}_\text{SINS} =
     \begin{bmatrix}
-        \bm{M}_{rr}       & \bm{I}_{3\times3} & \bm{0}_{3\times3} & \bm{0}_{3\times3}                          & \bm{0}_{3\times3}                     \\[6pt]
-        \bm{M}_{vr}       & \bm{M}_{vv}       & \bm{M}_{v\phi}    & \bm{0}_{3\times3}                          & \bm{C}_b^n                            \\[6pt]
-        \bm{M}_{\phi r}   & \bm{M}_{\phi v}   & \bm{M}_{\phi\phi} & -\bm{C}_b^n                                & \bm{0}_{3\times3}                     \\[6pt]
-        \bm{0}_{3\times3} & \bm{0}_{3\times3} & \bm{0}_{3\times3} & -\dfrac{1}{T_\varepsilon}\bm{I}_{3\times3} & \bm{0}_{3\times3}                     \\[6pt]
+        \bm{M}_{rr}       & \bm{I}_{3\times3} & \bm{0}_{3\times3} & \bm{0}_{3\times3}                          & \bm{0}_{3\times3}                     \\[4pt]
+        \bm{M}_{vr}       & \bm{M}_{vv}       & \bm{M}_{v\phi}    & \bm{0}_{3\times3}                          & \bm{C}_b^n                            \\[4pt]
+        \bm{M}_{\phi r}   & \bm{M}_{\phi v}   & \bm{M}_{\phi\phi} & -\bm{C}_b^n                                & \bm{0}_{3\times3}                     \\[4pt]
+        \bm{0}_{3\times3} & \bm{0}_{3\times3} & \bm{0}_{3\times3} & -\dfrac{1}{T_\varepsilon}\bm{I}_{3\times3} & \bm{0}_{3\times3}                     \\[4pt]
         \bm{0}_{3\times3} & \bm{0}_{3\times3} & \bm{0}_{3\times3} & \bm{0}_{3\times3}                          & -\dfrac{1}{T_\nabla}\bm{I}_{3\times3}
     \end{bmatrix}_{15\times15}
 \end{equation}
@@ -76,7 +74,7 @@ $\bm{F}_\text{SINS}$ 可进一步写作多个子矩阵的组合形式：
         \bm{f}^n          & = \bm{C}_{b}^n\bm{f}_{b},                                                                                                               \\
         \bm{M}_{v\phi}    & = \bigl\lfloor \bm{f}^n \times \bigr\rfloor,                                                                                                    \\
         \bm{M}_{vv}       & = \bigl( \bm{v}^n \times \bigr)\bm{M}_{av} - \bigl\lfloor (2\bm{\omega}_{ie}^n+\bm{\omega}_{en}^n) \times \bigr\rfloor, \\
-        \bm{M}_{vr}       & = \bigl( \bm{v}^n \times \bigr)(2\bm{M}_1+\bm{M}_2) + \bm{M}_3,                                                         \\[4pt]
+        \bm{M}_{vr}       & = \bigl( \bm{v}^n \times \bigr)(2\bm{M}_1+\bm{M}_2),                                                         \\[4pt]
         \bm{M}_{\phi\phi} & = -\bigl\lfloor \bm{\omega}_{in}^n \times \bigr\rfloor,                                                                                         \\
         \bm{M}_{\phi v}   & = \bm{M}_{av},                                                                                                                                  \\
         \bm{M}_{\phi r}   & = \bm{M}_1 + \bm{M}_2.
@@ -173,7 +171,7 @@ $E[(\bm{e}_r^T, \bm{e}_{vi}^T)^T(\bm{e}_r^T, \bm{e}_{vk}^T)] = \bm{R}_k\delta_{i
     =
     \begin{pmatrix}
         \bm{r}_1^{\text{IMU}} - \bm{r}_1^{\text{GNSS}} + \bm{C}_n^b \bm{e}^b \\[4pt]
-        \bm{v}_1^{\text{IMU}} - \bm{v}_1^{\text{GNSS}} - (\bm{\omega}_n^i \times) \bm{C}_n^b \mathbf{e}^b - \bm{C}_n^b (\mathbf{e}^b \times) \bm{\omega}_{ib}^b
+        \bm{v}_1^{\text{IMU}} - \bm{v}_1^{\text{GNSS}} - (\bm{\omega}_{in}^n \times) \bm{C}_n^b \bm{e}^b - \bm{C}_n^b (\bm{e}^b \times) \bm{\omega}_{ib}^b
     \end{pmatrix},
 \end{equation}
 

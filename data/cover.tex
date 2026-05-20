@@ -31,28 +31,30 @@
 \begin{cabstract}
 
   
-  高精度定位与导航服务在智能驾驶、航空航海、测绘监测及无人系统等领域需求迫切。GNSS在开阔环境下定位稳定，但在城市峡谷、隧道等场景易受多径、非视距与信号衰减影响，精度与可靠性明显下降。INS相较激光雷达等外感知方案具有成本低、部署简单、短时精度高、抗干扰强且可在无外部信号下连续输出的优势，但误差会随时间累积；因此，融合GNSS长期稳定性与INS低成本连续性的组合导航成为复杂环境下提升定位性能的有效途径。
+
+  高精度定位与导航服务在智能驾驶、航空航海、测绘监测及无人系统等领域需求迫切。全球导航卫星系统（GNSS，Global Navigation Satellite System）在开阔环境下定位稳定，但在城市峡谷、隧道等场景易受多径、非视距与信号衰减影响，精度与可靠性明显下降。惯性导航系统（INS，Inertial Navigation System）相较激光雷达等外感知方案具有成本低、部署简单、短时精度高、抗干扰强且可在无外部信号下连续输出的优势，但误差会随时间累积；因此，融合 GNSS 长期稳定性与 INS 低成本连续性的组合导航成为复杂环境下提升定位性能的有效途径。
 
 
-  针对复杂环境下观测噪声呈现非高斯、重尾分布的问题，本文提出一种融合自适应带宽最大相关熵卡尔曼滤波（MCKF）与松耦合（LC）模型的GNSS/INS组合导航方法。所构建的松耦合误差模型可刻画惯性器件主要误差项的积分传播规律；引入自适应带宽MCKF后，利用相关熵在核空间的局部相似性度量挖掘误差高阶统计特征，从而提升系统对GNSS复杂观测噪声及模型失配的抑制能力。
+  针对复杂环境下观测噪声呈现非高斯、重尾分布的问题，本文提出一种融合自适应带宽最大相关熵卡尔曼滤波（MCKF，Maximum Correntropy Kalman Filter）与松耦合（LC，Loosely Coupled）模型的 GNSS/INS 组合导航方法。所构建的松耦合误差模型可刻画惯性器件主要误差项的积分传播规律；引入自适应带宽 MCKF 后，利用相关熵在核空间的局部相似性度量挖掘误差高阶统计特征，从而提升系统对 GNSS 复杂观测噪声及模型失配的抑制能力。
 
   % 本文推导了融合算法的关键公式，并给出了面向工程实现的流程设计与实现细节。通过多组仿真对比实验对方法有效性进行验证，实验结果\note{（待补充 先空着）}。本文同步开源配套算法库与实验例程，以支持方法复现与进一步研究。
-  本文在给出融合算法关键公式的基础上，进一步提出了新息矩阵正定化、双速率传感器匹配利用以及GNSS/INS误差模型闭环不完全反馈等工程化处理策略，以提升算法在真实工程环境下的应用性能。在包含多径效应与信号衰减的模拟城市峡谷场景仿真测试中，3次重复实验结果表明：本文方法的位置、速度和姿态RMSE分别为$4.24\pm0.25~\mathrm{m}$、$0.057\pm0.002~\mathrm{m/s}$和$4.87\pm1.46^{\circ}$；与EKF相比，位置与速度误差均显著减小，且位置RMSE的统计检验结果为$p=0.422$，说明在当前样本规模下虽然未达到严格显著性水平，但其稳定性与抗发散能力更优。
+
+  本文在给出融合算法关键公式的基础上，进一步提出了新息矩阵正定化、双速率传感器匹配利用以及 GNSS/INS 误差模型闭环不完全反馈等工程化处理策略，以提升算法在真实工程环境下的应用性能。在包含多径效应与信号衰减的模拟城市峡谷场景仿真测试中，5次重复实验结果表明：本文方法的位置、速度和姿态均方根误差（RMSE，root mean square error）分别为$7.00\pm1.70~\mathrm{m}$、$0.247\pm0.058~\mathrm{m/s}$和$5.58\pm5.09^{\circ}$。与扩展卡尔曼滤波（EKF，Extended Kalman Filter）相比，MCKF 在位置维度略逊（EKF 位置 RMSE 为 $4.93\pm1.38~\mathrm{m}$），但在速度与姿态维度表现出明显优势（EKF 速度和姿态 RMSE 分别为 $0.429\pm0.475~\mathrm{m/s}$ 与 $22.95\pm18.02^{\circ}$）。位置 RMSE 的统计检验结果为 $p=0.0676$，在 $\alpha=0.05$ 水平下未达到显著性阈值。
   
 
 
 \end{cabstract}
 
 % 如果习惯关键字跟在摘要文字后面，可以用直接命令来设置，如下：
-\ckeywords{GNSS/INS组合导航；松耦合；最大相关熵卡尔曼滤波；自适应核带宽；非高斯噪声}
+\ckeywords{全球导航卫星系统/惯性导航系统组合导航；松耦合；最大相关熵卡尔曼滤波；自适应核带宽；非高斯噪声}
 
 \begin{eabstract}
-  High-precision positioning and navigation services are in great demand for applications such as intelligent driving, aviation and maritime navigation, surveying and unmanned systems. GNSS provides stable positioning in open-sky conditions, but its accuracy and reliability degrade markedly in complex environments (e.g. urban canyons and tunnels) due to multipath, non-line-of-sight reception and signal attenuation. INS has advantages of low cost, simple deployment, high short-term accuracy and strong anti-interference ability, but its errors accumulate over time. Therefore, fusing GNSS long-term stability with INS continuous short-term performance is an effective approach to improve positioning in challenging scenarios.
+  High-precision positioning and navigation services are in great demand for applications such as intelligent driving, aviation and maritime navigation, surveying and unmanned systems. Global Navigation Satellite System (GNSS) provides stable positioning in open-sky conditions, but its accuracy and reliability degrade markedly in complex environments (e.g. urban canyons and tunnels) due to multipath, non-line-of-sight reception and signal attenuation. Inertial Navigation System (INS) has advantages of low cost, simple deployment, high short-term accuracy and strong anti-interference ability, but its errors accumulate over time. Therefore, fusing GNSS long-term stability with INS continuous short-term performance is an effective approach to improve positioning in challenging scenarios.
 
   To address the non-Gaussian, heavy-tailed observation noise encountered in complex environments, this paper proposes a GNSS/INS loosely coupled navigation method that integrates an adaptive-bandwidth Maximum Correntropy Kalman Filter (MCKF). We construct a loosely coupled error-state model that captures the integral propagation patterns of the main inertial error terms. By introducing correntropy-based measures in kernel space, MCKF can exploit higher-order statistical characteristics of errors and suppress the influence of abnormal observations. An adaptive kernel bandwidth scheme is further designed, which dynamically updates the state and observation kernel widths by matching innovation covariances, thus improving the filter's adaptability to time-varying noise conditions.
 
-  The paper derives the key formulas of the proposed fusion algorithm and presents an engineering-oriented workflow and implementation details. In addition, we propose practical treatments — including a scheme to enforce positive definiteness of the innovation covariance matrix, matching and utilization strategies for dual-rate sensors, and an incomplete-feedback partially-closed-loop mechanism for the GNSS/INS error model — to enhance real-world performance. A modular, Python-based algorithm library and experiment routines are released to facilitate reproduction and further research. In simulated urban canyon tests incorporating multipath effects and signal attenuation, three repeated runs show that the proposed method achieves RMSE values of $4.24\pm0.25$ m for position, $0.057\pm0.002$ m/s for velocity, and $4.87\pm1.46^\circ$ for attitude; compared with the EKF, the position and velocity errors are markedly reduced. The position-RMSE significance test yields $p=0.422$, indicating that although the difference is not statistically significant at the 0.05 level with the current sample size, the proposed method provides better stability and anti-divergence performance.
+  The paper derives the key formulas of the proposed fusion algorithm and presents an engineering-oriented workflow and implementation details. In addition, we propose practical treatments — including a scheme to enforce positive definiteness of the innovation covariance matrix, matching and utilization strategies for dual-rate sensors, and an incomplete-feedback partially-closed-loop mechanism for the GNSS/INS error model — to enhance real-world performance. A modular, Python-based algorithm library and experiment routines are released to facilitate reproduction and further research. In simulated urban canyon tests incorporating multipath effects and signal attenuation, five repeated runs show that the proposed method achieves RMSE values of $7.00\pm1.70$ m for position, $0.247\pm0.058$ m/s for velocity, and $5.58\pm5.09^\circ$ for attitude. Compared with the extended Kalman filter (EKF), MCKF is slightly inferior on pose (EKF position RMSE: $4.93\pm1.38$ m), but shows clear advantages on velocity and attitude (EKF velocity and attitude RMSE: $0.429\pm0.475$ m/s and $22.95\pm18.02^\circ$). The position-RMSE significance test yields $p=0.0676$, which does not reach the 0.05 significance level.
 
 \end{eabstract}
 
-\ekeywords{GNSS/INS integrated navigation; Loosely coupled; Maximum Correntropy Kalman Filter; adaptive kernel bandwidth; non-Gaussian noise}
+\ekeywords{Global Navigation Satellite System/Inertial Navigation System integrated navigation; Loosely coupled; Maximum Correntropy Kalman Filter; adaptive kernel bandwidth; non-Gaussian noise}

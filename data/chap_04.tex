@@ -218,7 +218,7 @@ GNSS 与 IMU 典型更新频率存在显著差异（如 IMU 为 100 Hz 及以上
 	\begin{tikzpicture}[
 		node distance=6mm and 8mm,
 		>=Latex,
-		font=\footnotesize,
+		font=\dawu,
 		data/.style={draw, ellipse, align=center, text width=34mm, minimum height=8mm, inner sep=1.5pt},
 		sensor/.style={draw, rounded corners, align=center, text width=30mm, minimum height=8mm, inner sep=1.5pt},
 		block/.style={draw, rounded corners, align=center, text width=38mm, minimum height=8mm, inner sep=2pt},
@@ -299,11 +299,11 @@ GNSS 与 IMU 典型更新频率存在显著差异（如 IMU 为 100 Hz 及以上
 
 \section{仿真实验设计}
 
-为验证前述 GNSS/INS 松耦合自适应 MCKF 的有效性，本文在可控仿真环境下开展对比实验。实验设计遵循“统一轨迹、统一噪声模型、统一评价口径、仅替换滤波策略”的原则，保证结论可复现且具有可比性。
+为验证前述全球导航卫星系统（GNSS）/惯性导航系统（INS）松耦合自适应最大相关熵卡尔曼滤波（MCKF）的有效性，本文在可控仿真环境下开展对比实验。实验设计遵循“统一轨迹、统一噪声模型、统一评价口径、仅替换滤波策略”的原则，保证结论可复现且具有可比性。
 
 \subsection{仿真平台与实现边界}
 
-本文采用 Aceinna 开源的 ``gnss-ins-sim'' 在 Python 环境生成带时间戳的 IMU 与 GNSS 观测数据，融合算法负责机械编排、状态预测与量测更新。数据读写、坐标变换及部分惯导基础工具参考 ``pyins'' 实现，松耦合自适应 MCKF 的误差状态建模、预测与迭代更新由本文独立完成\cite{gnssinssim,pyins}。为保证结果可复现，本文对同一工况重复运行 3 次，并对各项指标取均值、标准差与显著性统计。
+本文采用 Aceinna 开源的 ``gnss-ins-sim'' 在 Python 环境生成带时间戳的 IMU 与 GNSS 观测数据，融合算法负责机械编排、状态预测与量测更新。数据读写、坐标变换及部分惯导基础工具参考 ``pyins'' 实现，松耦合自适应 MCKF 的误差状态建模、预测与迭代更新由本文独立完成\cite{gnssinssim,pyins}，并已开源发布\footnote{项目地址：\url{https://gitee.com/smallblackqaq/starlight}}。为保证结果可复现，本文对同一工况重复运行 5 次，并对各项指标取均值、标准差与显著性统计。
 
 为避免平台差异对对比结果的影响，所有算法共用同一组仿真输入数据与初始条件，且统一采用第二章的 15 维松耦合误差状态定义与第三章的 MCKF 迭代更新框架。
 
@@ -349,8 +349,8 @@ GNSS & 噪声参数 ``stdp'' & $[0.05,0.05,0.05]$ \\
 
 为突出自适应 MCKF 在非理想噪声下的性能优势，本文采用以下两组算法进行同源数据对比\cite{izanloo2016kalman,xie2025adaptive}：
 \begin{enumerate}
-\item 标准 EKF 松耦合（固定 $\bm{Q},\bm{R}$）；
-\item 自适应带宽 MCKF 松耦合（本文方法）。
+\item 标准扩展卡尔曼滤波（EKF）松耦合（固定 $\bm{Q},\bm{R}$）；
+\item 自适应带宽最大相关熵卡尔曼滤波（MCKF）松耦合（本文方法）。
 \end{enumerate}
 
 %相关的统计数据 还做了CEP 同时每组结果计算PI
@@ -362,6 +362,29 @@ GNSS & 噪声参数 ``stdp'' & $[0.05,0.05,0.05]$ \\
 \end{equation}
 其中 $\hat{\bm{r}}_k$ 为估计位置，$\bm{r}_k^{\text{ref}}$ 为参考真值轨迹。速度与姿态指标采用同构定义。
 
+对于分位统计指标，本文对位置、速度与姿态三类误差分别统计 50\% 与 95\% 分位数。位置通道先定义单次实验中第 $k$ 个时刻的水平误差为
+\begin{equation}
+e_{h,k}=\sqrt{\left(\hat r_{E,k}-r^{\text{ref}}_{E,k}\right)^2+\left(\hat r_{N,k}-r^{\text{ref}}_{N,k}\right)^2},
+\label{eq:ch4_horizontal_error}
+\end{equation}
+其中 $E$ 和 $N$ 分别表示东向与北向分量。则单次实验的 CEP50 与 R95 可分别写为
+\begin{equation}
+\mathrm{CEP50}=Q_{0.50}\!\left(\{e_{h,k}\}_{k=1}^{N}\right),
+\qquad
+\mathrm{R95}=Q_{0.95}\!\left(\{e_{h,k}\}_{k=1}^{N}\right),
+\label{eq:ch4_cep_r95}
+\end{equation}
+其中 $Q_{p}(\cdot)$ 表示 $p$ 分位数。速度与姿态通道采用同样的分位统计思想：分别对速度三维误差范数序列与姿态三维误差范数序列计算 50\% 与 95\% 分位数。若需要给出跨轮次统计值，则与 RMSE 一样，对各轮次对应分位指标再计算均值与标准差。
+
+在单轮指标的基础上，本文对每组工况重复实验 5 次，因此表中的“$\pm$”表示不同实验轮次之间的均值与标准差，而不是单次轨迹内的离散波动。设第 $j$ 次实验得到的某一指标记为 $J_j$，重复次数为 $M$，则该指标的跨轮次均值与标准差分别定义为
+\begin{equation}
+\bar{J}=\frac{1}{M}\sum_{j=1}^{M}J_j,
+\qquad
+s_J=\sqrt{\frac{1}{M-1}\sum_{j=1}^{M}\left(J_j-\bar{J}\right)^2}.
+\label{eq:ch4_mean_std}
+\end{equation}
+因此，若某一统计结果写为“$7.00\pm1.70$”，则表示 5 次重复实验得到的位置 RMSE 的均值为 $7.00~\mathrm{m}$、标准差为 $1.70~\mathrm{m}$。
+
 % 此外，为考察抗异常能力，在 GNSS 观测中引入少量脉冲型粗差（幅值远高于标称噪声）并保持其发生时刻对各算法一致，比较不同方法在异常段的误差放大程度与收敛恢复时间。
 %目前没搞这个哈 搞这个肯定要发散的
 
@@ -370,8 +393,8 @@ GNSS & 噪声参数 ``stdp'' & $[0.05,0.05,0.05]$ \\
 实验执行流程如下：
 \begin{enumerate}
 \item 依据表~\ref{tab:ch4_sim_sensor_params} 生成 IMU/GNSS 原始观测与真值轨迹；
-\item 统一初值与协方差，分别运行 EKF 与自适应 MCKF，并对每组工况重复 3 次；
-\item 依据式(\ref{eq:ch4_rmse_pos}) 及对应速度、姿态误差定义统计指标，同时记录最大位置误差、CEP50 与 R95；
+\item 统一初值与协方差，分别运行 EKF 与自适应 MCKF，并对每组工况重复 5 次；
+\item 依据式(\ref{eq:ch4_rmse_pos}) 及对应速度、姿态误差定义统计指标，同时记录位置/速度/姿态三通道的最大误差、50\% 分位数与 95\% 分位数；
 \item 汇总时域误差曲线与统计表格，完成横向对比分析。
 \end{enumerate}
 
@@ -381,9 +404,9 @@ GNSS & 噪声参数 ``stdp'' & $[0.05,0.05,0.05]$ \\
 
 \subsection{实验结果分析}
 
-从典型单次运行曲线可以看出，MCKF 在初始静止段与后续机动切换段都表现出更快的收敛速度和更强的抑振能力。图~\ref{fig:ch4_result_attitude} 与图~\ref{fig:ch4_result_heading} 给出了姿态和航向误差的典型单次运行结果，可以看到 MCKF 在约 $200~\mathrm{s}$ 后已基本压制到 $1^{\circ}$ 以内，而 EKF 在初始阶段出现明显误差尖峰，随后虽然能够回落，但仍保留较长时间的漂移尾迹。
+从典型单次运行曲线可以看出，两种方法在不同通道上的表现存在分化。图~\ref{fig:ch4_result_attitude} 与图~\ref{fig:ch4_result_heading} 显示，MCKF 在姿态与航向误差抑制方面整体更稳定，峰值尖峰与长尾漂移相对更弱。图~\ref{fig:ch4_result_velocity} 也表明 MCKF 在速度通道的波动幅度更小、异常时刻恢复更快。
 
-图~\ref{fig:ch4_result_position_3d} 与图~\ref{fig:ch4_result_position_h} 进一步表明，MCKF 的位置误差大部分时间稳定在 $4\sim6~\mathrm{m}$ 区间，水平误差也保持在较低水平；相较之下，EKF 在中后段出现持续累积的偏差，并伴随多次局部尖峰。图~\ref{fig:ch4_result_velocity} 和图~\ref{fig:ch4_result_trajectory} 则说明，自适应带宽更新不仅改善了速度误差的稳定性，也使三维轨迹更贴近参考轨迹，避免了 EKF 在长时传播中的明显偏离。
+但在位置通道，图~\ref{fig:ch4_result_position_3d} 与图~\ref{fig:ch4_result_position_h} 反映出 MCKF 并未稳定优于 EKF：在部分工况下其水平位置误差带更宽，说明当前参数设置下 MCKF 在 pose 指标上略逊于 EKF。综合图~\ref{fig:ch4_result_velocity_group} 的速度与轨迹结果，可以认为 MCKF 的主要收益集中在速度与姿态鲁棒性提升，而非位置均值误差的绝对最优。
 
 \begin{figure}[htbp]
 \centering
@@ -439,27 +462,71 @@ GNSS & 噪声参数 ``stdp'' & $[0.05,0.05,0.05]$ \\
 \label{fig:ch4_result_velocity_group}
 \end{figure}
 
-三次重复实验的统计结果如表~\ref{tab:ch4_result_stats} 所示。MCKF 的位置 RMSE 为 $4.24\pm0.25~\mathrm{m}$，最大位置误差为 $7.07\pm0.37~\mathrm{m}$，CEP50 与 R95 分别为 $2.27\pm0.15~\mathrm{m}$ 和 $4.91\pm0.65~\mathrm{m}$，表明其输出在绝大多数时刻都保持在较小误差带内。EKF 的均值则被一次发散工况显著拉高，位置 RMSE 达到 $1258.24\pm2170.26~\mathrm{m}$，最大位置误差达到 $2810.92\pm4844.16~\mathrm{m}$，CEP50 与 R95 也分别上升到 $677.16~\mathrm{m}$ 和 $2544.99~\mathrm{m}$。速度 RMSE 方面，MCKF 为 $0.057\pm0.002~\mathrm{m/s}$，EKF 为 $4.481\pm5.433~\mathrm{m/s}$，说明自适应带宽更新对速度通道同样具有明显的约束作用。
+五次重复实验的统计结果如表~\ref{tab:ch4_result_stats} 所示。位置通道上，MCKF 的位置 RMSE 为 $7.00\pm1.70~\mathrm{m}$，高于 EKF 的 $4.93\pm1.38~\mathrm{m}$；位置 CEP50 与位置 R95 分别为 $4.58\pm1.30~\mathrm{m}$、$13.12\pm3.43~\mathrm{m}$，也高于 EKF 的 $2.71\pm1.17~\mathrm{m}$、$6.63\pm2.90~\mathrm{m}$，说明 MCKF 在 pose 维度略逊。
+
+相比之下，速度与姿态通道上 MCKF 优势显著：速度 RMSE 为 $0.247\pm0.058~\mathrm{m/s}$，显著低于 EKF 的 $0.429\pm0.475~\mathrm{m/s}$，且速度最大误差均值由 EKF 的 $4.09~\mathrm{m/s}$ 降至 $0.98~\mathrm{m/s}$。姿态 RMSE 方面，MCKF 为 $5.58\pm5.09^{\circ}$，明显低于 EKF 的 $22.95\pm18.02^{\circ}$；姿态 R95 也由 EKF 的 $62.94^{\circ}$ 降至 $15.16^{\circ}$。这表明自适应带宽机制在动态稳定性与抗异常扰动方面仍具有明显工程价值。
 
 \begin{table}[htbp]
 \centering
-\caption{仿真实验结果统计（每组工况重复 3 次）}
+\caption{仿真实验结果统计（每组工况重复 5 次）}
 \label{tab:ch4_result_stats}
 \begin{tabular}{lcc}
 \toprule[1.5pt]
 指标 & MCKF & EKF \\
 \midrule[1pt]
-位置 RMSE / m & $4.24\pm0.25$ & $1258.24\pm2170.26$ \\
-速度 RMSE / m/s & $0.057\pm0.002$ & $4.481\pm5.433$ \\
-姿态 RMSE / $^{\circ}$ & $4.87\pm1.46$ & $5.14\pm1.24$ \\
-最大位置误差 / m & $7.07\pm0.37$ & $2810.92\pm4844.16$ \\
-CEP50 / m & $2.27\pm0.15$ & $677.16\pm1166.12$ \\
-R95 / m & $4.91\pm0.65$ & $2544.99\pm4393.80$ \\
+位置 RMSE / m & $7.00\pm1.70$ & $4.93\pm1.38$ \\
+速度 RMSE / m/s & $0.247\pm0.058$ & $0.429\pm0.475$ \\
+姿态 RMSE / $^{\circ}$ & $5.58\pm5.09$ & $22.95\pm18.02$ \\
+最大位置误差 / m & $21.96\pm4.75$ & $17.08\pm9.08$ \\
+最大速度误差 / m/s & $0.983\pm0.348$ & $4.093\pm4.318$ \\
+最大姿态误差 / $^{\circ}$ & $21.18\pm16.73$ & $71.24\pm50.69$ \\
+位置 CEP50 / m & $4.58\pm1.30$ & $2.71\pm1.17$ \\
+位置 R95 / m & $13.12\pm3.43$ & $6.63\pm2.90$ \\
+速度 CEP50 / m/s & $0.145\pm0.035$ & $0.086\pm0.048$ \\
+速度 R95 / m/s & $0.489\pm0.106$ & $0.672\pm0.752$ \\
+姿态 CEP50 / $^{\circ}$ & $0.461\pm0.162$ & $0.855\pm1.121$ \\
+姿态 R95 / $^{\circ}$ & $15.16\pm14.42$ & $62.94\pm49.71$ \\
 \bottomrule[1.5pt]
 \end{tabular}
 \end{table}
 
-需要说明的是，位置 RMSE 的统计检验结果为 $p=0.422$，在当前仅 3 次重复的样本规模下尚不足以给出严格的显著性结论；但从单次曲线、峰值误差与分位数统计来看，MCKF 的稳定性优势非常明确，尤其在 EKF 出现发散的工况下差异更加突出。结合结果可以认为，本章自适应带宽机制的主要收益不在于对均值的微小修正，而在于显著抑制长时漂移和异常放大，从而提高 GNSS/INS 松耦合系统在复杂轨迹下的工程可用性。
+需要说明的是，位置 RMSE 的统计检验结果为 $p=0.0676$，在 $\alpha=0.05$ 水平下未达到显著性阈值，且均值层面 MCKF 劣于 EKF，这与“pose 略逊”的结论一致。另一方面，速度与姿态相关指标在均值与高分位统计上均显示出对 MCKF 的明显偏好，说明本章方法的主要收益体现在速度和姿态通道的鲁棒估计能力提升，而非位置误差最小化。
+
+为便于观察跨轮次差异，表~\ref{tab:ch4_round_rmse} 列出了 5 轮实验中位置、速度与姿态 RMSE 的逐轮结果。可以看到，EKF 在第 3 轮出现了明显的速度与姿态失稳（速度 RMSE 为 $1.253~\mathrm{m/s}$、姿态 RMSE 为 $49.340^{\circ}$），显著抬升了其速度与姿态指标的标准差；而 MCKF 在第 4 轮姿态误差有阶段性上升（姿态 RMSE 为 $14.415^{\circ}$），对应图~\ref{fig:ch4_result_attitude_group} 中局部波动。该现象表明，两类方法均可能在特定工况下出现退化，但退化通道并不相同：EKF 主要表现为速度与姿态通道的突发失稳，MCKF 则更多体现为位置通道的持续偏差与个别姿态轮次波动。
+
+此外，表~\ref{tab:ch4_pvalue_test} 给出了位置 RMSE 的统计检验结果。由于当前仅完成位置 RMSE 的检验，本章对速度与姿态“优势”的判断主要基于均值、标准差、分位数与典型时域曲线的一致性证据。后续可在配对实验设计下补充速度与姿态指标的同口径假设检验，以进一步增强结论的统计严谨性。
+
+\begin{table}[htbp]
+\centering
+\caption{5轮实验逐轮 RMSE 对比}
+\label{tab:ch4_round_rmse}
+\begin{tabular}{ccccccc}
+\toprule[1.5pt]
+轮次 & \multicolumn{2}{c}{位置 RMSE / m} & \multicolumn{2}{c}{速度 RMSE / m/s} & \multicolumn{2}{c}{姿态 RMSE / $^{\circ}$} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+& MCKF & EKF & MCKF & EKF & MCKF & EKF \\
+\midrule[1pt]
+1 & 8.552 & 6.636 & 0.153 & 0.417 & 3.766 & 28.864 \\
+2 & 6.397 & 4.406 & 0.296 & 0.191 & 1.691 & 23.127 \\
+3 & 8.958 & 5.974 & 0.244 & 1.253 & 5.021 & 49.340 \\
+4 & 6.171 & 4.437 & 0.245 & 0.106 & 14.415 & 2.234 \\
+5 & 4.946 & 3.184 & 0.295 & 0.177 & 2.982 & 11.172 \\
+\bottomrule[1.5pt]
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{位置 RMSE 显著性检验结果}
+\label{tab:ch4_pvalue_test}
+\begin{tabular}{lccc}
+\toprule[1.5pt]
+对比方法 & $p$ 值 & 判别阈值 $\alpha$ & 是否显著（$p<\alpha$） \\
+\midrule[1pt]
+MCKF vs EKF（位置 RMSE） & 0.0676 & 0.05 & 否 \\
+\bottomrule[1.5pt]
+\end{tabular}
+\end{table}
 
 
 %仿真结果分析
